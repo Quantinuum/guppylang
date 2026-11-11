@@ -1,0 +1,14 @@
+Error: Incompatible signature for custom `controlled` implementation (at $FILE:12:4)
+   | 
+10 | 
+11 |     @guppy
+12 |     def controlled(q: qubit) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 |         pass
+   | ^^^^^^^^^^^^ Expected signature `forall n: nat. (qubit, array[qubit, n])
+   |              -> None`, got `qubit -> None`
+
+Note: A custom `controlled` implementation must have its parent function's
+signature followed by an `array[qubit, n]` input containing the control qubits.
+
+Guppy compilation failed due to 1 previous error

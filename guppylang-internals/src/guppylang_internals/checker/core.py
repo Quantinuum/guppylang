@@ -14,15 +14,25 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    ModifierContext,
+)
 from guppylang_internals.definition.common import (
     DefId,
     Definition,
     ParsedDef,
 )
-from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
+from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
+from guppylang_internals.frame_util import FrameSnapshot
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import (
+    BoundConstVar,
+    ComptimeConstValue,
+    ConstValue,
+    ExistentialConstVar,
+)
 from guppylang_internals.tys.ty import (
     InputFlags,
     StructType,
@@ -93,8 +103,12 @@ class Variable:
         return replace(self, defined_at=node)
 
     def add_flags(self, flags: InputFlags) -> "Variable":
-        """Returns a new `Variable` instance with updated flags."""
+        """Returns a new `Variable` instance with added flags."""
         return replace(self, flags=self.flags | flags)
+
+    def remove_flags(self, flags: InputFlags) -> "Variable":
+        """Returns a new `Variable` instance with removed flags"""
+        return replace(self, flags=self.flags & ~flags)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -294,7 +308,7 @@ class PythonObject:
 
 
 class Globals:
-    """Wrapper around a stack frame in which a Guppy definition was defined.
+    """Wrapper around the Python scope in which a Guppy definition was defined.
 
     Gives access to the other globals that are in scope for that definition.
     """
@@ -302,9 +316,9 @@ class Globals:
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
-    frame: FrameType
+    frame: FrameType | FrameSnapshot
 
-    def __init__(self, frame: FrameType) -> None:
+    def __init__(self, frame: FrameType | FrameSnapshot) -> None:
         self.frame = frame
         self.f_locals = frame.f_locals
         self.f_globals = frame.f_globals
@@ -440,6 +454,14 @@ class Context(NamedTuple):
     modified_block_name_base: str = ""
     modified_block_counter: Iterator[int] | None = None
 
+    """If not None, the call graph node for the function being checked, which also
+    stores the effect constraints that function calls in this context must respect,
+    together with the AST node that gives rise to said constraint."""
+    current_caller: MonoDefId | None = None
+
+    #: Active modifiers the function is being called with
+    modifier_ctx: ModifierContext = NO_CALL_MODIFIERS
+
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":
         """A type parsing context derived from this checking context."""
@@ -471,6 +493,22 @@ class DummyEvalDict(dict[str, Any]):
         var: str
         node: ast.Name | None
 
+    @dataclass
+    class UnboundGenericVarUsedError(BaseException):
+        """Error that is raised when the user tries to access a generic type variable
+        that is not bound in the current function."""
+
+        var: str
+        node: ast.Name | None
+
+    class UnsolvedExistentialError(BaseException):
+        """Error that is raised when the user tries to access a generic const variable
+        that has not been solved yet.
+
+        This can only happen when we're evaluating comptime expressions inside function
+        signatures during type inference.
+        """
+
     def __init__(self, ctx: Context, node: ast.expr):
         super().__init__(**(ctx.globals.f_globals | ctx.globals.f_locals))
         self.ctx = ctx
@@ -492,7 +530,9 @@ class DummyEvalDict(dict[str, Any]):
                 case ConstArg(const=BoundConstVar()):
                     raise RequiresMonomorphizationError
                 case ConstArg(const=ExistentialConstVar()):
-                    raise InternalGuppyError("Unexpected generic instantiation")
+                    raise DummyEvalDict.UnsolvedExistentialError
+                case ConstArg(const=ComptimeConstValue()):
+                    raise RequiresMonomorphizationError
                 case TypeArg():
                     # We cannot return values of type variables since we don't have a
                     # comptime representation of types yet.
@@ -502,7 +542,16 @@ class DummyEvalDict(dict[str, Any]):
                         (n for n in name_nodes_in_ast(self.node) if n.id == key), None
                     )
                     raise DummyEvalDict.GuppyTypeVarUsedError(key, node)
-        return super().__getitem__(key)
+
+        from guppylang.defs import GuppyTypeVarDefinition
+
+        value = super().__getitem__(key)
+        if isinstance(value, GuppyTypeVarDefinition):
+            # This means the user tried to refer to a type variable that is not declared
+            # by the function
+            node = next((n for n in name_nodes_in_ast(self.node) if n.id == key), None)
+            raise DummyEvalDict.UnboundGenericVarUsedError(key, node)
+        return value
 
     def __delitem__(self, key: str) -> None:
         self._check_item(key)

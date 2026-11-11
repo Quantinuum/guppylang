@@ -16,6 +16,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_RANDOM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import external_op
+from guppylang_internals.tys import Effect
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
@@ -30,7 +31,15 @@ SHUFFLE_T = guppy.type_var("SHUFFLE_T", copyable=False, droppable=False)
 DISCRETE_N = guppy.nat_var("DISCRETE_N")
 
 
-@hugr_op(external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION))
+@hugr_op(
+    external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
+    # Totally order creation/deletion of RNG contexts.
+    # Since there is only one global RNG, multiple contexts alive at once
+    # will lead to unpredictable results; but using the RNG effect for creation
+    # and deletion will at least ensure we preserve behaviour of user code
+    # that only has one RNG context live at once.
+    effects=[Effect.RNG],
+)
 @no_type_check
 def _new_rng_context(seed: int) -> Option["RNG"]: ...
 
@@ -54,31 +63,39 @@ class RNG:
         r"""Generate a random Clifford angle (multiple of :math:`\pi/2`)."""
         return self.random_int_bounded(4) * pi / 2
 
-    @hugr_op(external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION))
+    @hugr_op(
+        external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
+        # Totally order creation/deletion of RNG contexts, as per _new_rng_context,
+        # to at least preserve behaviour of user code that has at most one live context.
+        effects=[Effect.RNG],
+    )
     @no_type_check
     def discard(self: "RNG" @ owned) -> None:
         """Discard the random number generator."""
 
-    @custom_function(RandomIntCompiler())
+    @custom_function(RandomIntCompiler(), effects=())
     @no_type_check
     def random_int(self: "RNG") -> int:
         """Generate a random 32-bit signed integer."""
 
-    @hugr_op(external_op("RandomFloat", [], ext=QSYSTEM_RANDOM_EXTENSION))
+    # No effects: all state is carried inside the borrowed `self`
+    @hugr_op(external_op("RandomFloat", [], ext=QSYSTEM_RANDOM_EXTENSION), effects=())
     @no_type_check
     def random_float(self: "RNG") -> float:
         """Generate a random floating point value in the range [0,1)."""
 
-    @custom_function(RandomIntBoundedCompiler())
+    # The panic here is in narrowing the bound from 64-bit int down to 32 bits
+    @custom_function(RandomIntBoundedCompiler(), effects=[Effect.PANIC])
     @no_type_check
     def random_int_bounded(self: "RNG", bound: int) -> int:
         """Generate a random 32-bit integer in the range [0, bound).
 
         Args:
-            bound: The upper bound of the range, needs to less than 2^31.
+            bound: The upper bound of the range, needs to be less than 2^31.
         """
 
-    @hugr_op(external_op("RandomAdvance", [], ext=QSYSTEM_RANDOM_EXTENSION))
+    # No effects: all state is carried in the borrowed `self`
+    @hugr_op(external_op("RandomAdvance", [], ext=QSYSTEM_RANDOM_EXTENSION), effects=())
     @no_type_check
     def random_advance(self: "RNG", delta: int) -> None:
         """Advance or backtrack the RNG state by a given number of steps.

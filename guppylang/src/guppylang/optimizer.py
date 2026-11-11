@@ -58,6 +58,10 @@ require a specific gateset when targeting a particular architecture.
 ``with_minimal_opt()`` is shorthand for selecting :py:attr:`OptimizationLevel.Minimal`.
 It disables optional optimizations on the program.
 
+Emulation in debug mode (enabling panic traces) requires minimal optimization. Calling
+``emulator()`` with debug mode enabled and any optimization passes configured raises
+``EmulatorBuildError``.
+
 .. code-block:: python
 
     emulator = main.with_minimal_opt().emulator(n_qubits=1)
@@ -96,6 +100,31 @@ optimization level:
     )
 
 
+Compiling libraries
+-------------------
+
+``GuppyLibrary.compile()`` uses the same default optimization level as function
+compilation. Libraries also support ``with_opt_level()`` and
+``with_minimal_opt()``, returning a :py:class:`LibraryOptimizerInstance` that
+supports chaining custom passes:
+
+.. code-block:: python
+
+    from guppylang.library import GuppyLibrary
+    from tket.passes import InlineFunctions
+
+    library = GuppyLibrary.from_members(foo, bar)
+    package = library.with_minimal_opt().compile()
+    package = (
+        library.with_opt_level(OptimizationLevel.Classical)
+        .with_optimization(InlineFunctions())
+        .compile()
+    )
+
+Optimization preserves public library exports, but may inline or remove private
+helpers. Use minimal optimization when inspecting the original function structure.
+
+
 Setting the target platform
 -----------------------------
 
@@ -120,11 +149,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    ParamSpec,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -134,8 +159,10 @@ if TYPE_CHECKING:
 
     from guppylang.defs import GuppyFunctionDefinition
     from guppylang.emulator import EmulatorBuilder, EmulatorInstance, Platform
+    from guppylang.library import GuppyLibrary
 
 __all__ = (
+    "LibraryOptimizerInstance",
     "OptimizationLevel",
     "OptimizerInstance",
 )
@@ -179,19 +206,21 @@ class OptimizationLevel(Enum):
 
     This is useful for low-level program analysis or when more control over
     the optimization passes is desired.
+
+    Note that any rewrites applied at this level must preserve enough debug information
+    to allow for stack traces to be generated in the event of a panic.
     """
 
     def passes(self) -> list[ComposablePass]:
         """Return the list of HUGR passes ran by this optimization level."""
         match self:
             case OptimizationLevel.Default:
-                # The pytket dependency could be bypassed by using the json
-                # encoding of the passes rather than the pytket objects
-                # themselves.
-                from pytket.passes import RemoveRedundancies
                 from tket import passes
 
-                return [passes.Normalize(), passes.PytketHugrPass(RemoveRedundancies())]
+                return [
+                    passes.Normalize(),
+                    passes.PytketHugrPass(_RemoveRedundanciesPass()),
+                ]
             case OptimizationLevel.Classical:
                 from tket import passes
 
@@ -258,7 +287,22 @@ class OptimizerInstance[**P, Out]:
         platform: Platform | None = None,
         debug_mode: bool = False,
     ) -> EmulatorInstance:
-        """Compile this function for emulation with the configured optimizations."""
+        """Compile this function for emulation with the configured optimizations.
+
+        Emulation in debug mode (enabling panic traces) requires minimal optimization.
+        """
+        from guppylang.emulator.exceptions import EmulatorBuildError
+
+        # TODO: Consider changing this to a warning instead of an error after
+        # https://github.com/Quantinuum/tket2/issues/1964 is resolved.
+        if debug_mode and self.passes:
+            raise EmulatorBuildError(
+                ValueError(
+                    "Emulation in debug mode (enabling panic traces) requires minimal "
+                    "optimization. Call `with_minimal_opt()` before `emulator()`, or "
+                    "disable debug mode."
+                )
+            )
 
         # If platform is set, use it.
         # Else if platform is not explicitly provided, use the target platform
@@ -268,7 +312,12 @@ class OptimizerInstance[**P, Out]:
             platform = "helios"
 
         return self.definition._emulator(
-            self.compile_function(debug_mode), n_qubits, builder, libs, platform
+            self.compile_function(debug_mode),
+            n_qubits,
+            builder,
+            libs,
+            platform,
+            debug_mode=debug_mode,
         )
 
     def compile(self, debug_mode: bool = False) -> Package:
@@ -287,3 +336,46 @@ class OptimizerInstance[**P, Out]:
     def compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a function with the configured optimizations."""
         return _apply_passes(self.definition._compile_function(debug_mode), self.passes)
+
+
+@dataclass(frozen=True)
+class LibraryOptimizerInstance:
+    """Configure optimization passes for a :py:class:`GuppyLibrary`.
+
+    Obtained by calling ``library.with_opt_level()`` or
+    ``library.with_minimal_opt()``. Custom passes run after the selected level's
+    passes, in the order added.
+    """
+
+    library: GuppyLibrary
+    passes: list[ComposablePass] = field(default_factory=list)
+
+    def with_opt_level(self, level: OptimizationLevel) -> LibraryOptimizerInstance:
+        """Select a level, replacing any previously configured or custom passes."""
+        return replace(self, passes=level.passes())
+
+    def with_minimal_opt(self) -> LibraryOptimizerInstance:
+        """Disable optional passes, replacing any previously configured passes."""
+        return self.with_opt_level(OptimizationLevel.Minimal)
+
+    def with_optimization(
+        self, optimization: ComposablePass
+    ) -> LibraryOptimizerInstance:
+        """Append an optimization pass to run when compiling the library."""
+        return replace(self, passes=[*self.passes, optimization])
+
+    def compile(self) -> Package:
+        """Compile the library and apply the configured optimization passes."""
+        return _apply_passes(self.library._compile(), self.passes)
+
+
+@dataclass(frozen=True, slots=True)
+class _RemoveRedundanciesPass:
+    """Clone of pytket's RemoveRedundancies pass definition that does not
+    require pytket to be available."""
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "StandardPass": {"name": "RemoveRedundancies"},
+            "pass_class": "StandardPass",
+        }

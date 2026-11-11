@@ -1,5 +1,144 @@
 # Changelog
 
+## [1.2.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.0-rc0...guppylang-internals-v1.2.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* Avoid retaining the entire call stack when storing frames for compilation stage (#2458)([7aa5f25](https://github.com/Quantinuum/guppylang/commit/7aa5f25a643605abaa1ca8f8e2470069a09375e0))
+
+
+### Features
+
+* Add loading edges in the callgraph (#2448)([b2d07cf](https://github.com/Quantinuum/guppylang/commit/b2d07cf83a299fa03f677bc3ba2163fe80545bbf))
+
+## [1.2.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.2.0-rc0) (2026-10-21)
+
+
+### Bug Fixes
+
+* Bump tket dependency to 0.15.12 (#2440)([c430b05](https://github.com/Quantinuum/guppylang/commit/c430b058250cab6bbcf21158ee91d08463e48aea))
+* Effects in ext_module_decorator and for from_halfturns_unchecked (#2438)([4f85c47](https://github.com/Quantinuum/guppylang/commit/4f85c477083af1059826c24ff5fa352a749e442d))
+* Remove unsound effect defaults from hugr_op and custom_func and add many missing effects (#2269)([df85c2d](https://github.com/Quantinuum/guppylang/commit/df85c2d632a366a7eb39cf75e65c8eb23985133c))
+* Resolve calls to nested functions iff capturing closures are disabled (#2279)([c386494](https://github.com/Quantinuum/guppylang/commit/c386494714b9963ce57219cb4e6cfe932792af19))
+
+
+### Documentation
+
+* Use Oxford spelling consistently in public documentation (#2341)([b04bcd2](https://github.com/Quantinuum/guppylang/commit/b04bcd241003adb6b5ef79a6af68e48bcddcff0c))
+
+
+### Features
+
+* Split effects into ALLOC, FREE, OUTPUT, PANIC, RNG and impose weak and strong ordering (#2363)([609cb6f](https://github.com/Quantinuum/guppylang/commit/609cb6f2b3fefa30f3292b277f362365256a8b76))
+* Type-level arithmetic (#2418)([c7d5e11](https://github.com/Quantinuum/guppylang/commit/c7d5e11a3ef02ce4b7e9f293e989da52660e99e6))
+* Preserve barriers and static array outputs in comptime (#2263)([6727a99](https://github.com/Quantinuum/guppylang/commit/6727a99c7dc5ba8b07e638534340b0fef947a192))
+* Guppy standard math module using HUGR math extension (#2365)([6781ffd](https://github.com/Quantinuum/guppylang/commit/6781ffd0aa414ba2b1f483d247f5d485d112aa90))
+* Custom modifiers as struct and enum methods (#2277)([28ee857](https://github.com/Quantinuum/guppylang/commit/28ee8574947847e32c59f4f45872f295df6f1aaa))
+
+
+### Performance Improvements
+
+* Avoid single dispatch on hot code paths (#2317)([7d5589e](https://github.com/Quantinuum/guppylang/commit/7d5589ee9b6938a7c64bfdd25690ff365cde746d))
+
+## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
+
+
+### Features
+
+* Add loading edges in the callgraph (#2450)([9b53a42](https://github.com/Quantinuum/guppylang/commit/9b53a420fdaed6f2983dcc8189b3003e4a66f215))
+
+## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.2...guppylang-internals-v1.1.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* Infer type variables in higher order generic modifier arguments (#2402)([4f3ec86](https://github.com/Quantinuum/guppylang/commit/4f3ec86a70404a3c517d75e110a1af8f247110e9))
+* Resolve instance methods from generic protocol bounds (#2401)([602f1bd](https://github.com/Quantinuum/guppylang/commit/602f1bd6f2555cf594f46891bba18526e3d46984))
+* Resolve enclosing-scope names in `@guppy.unitary` methods (#2389)([cbcd28c](https://github.com/Quantinuum/guppylang/commit/cbcd28c7972f3dc24f44061998371ba4b7b67834))
+
+## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.1...guppylang-internals-v1.1.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* Bad span for missing return diagnostic with walrus loop condition (#2380)([da8668b](https://github.com/Quantinuum/guppylang/commit/da8668bf253f7afa8362ddc5277e306a8215897f))
+* Clear stale inout flags on copyable generic captures (#2379)([fd78419](https://github.com/Quantinuum/guppylang/commit/fd784190b21da37003183a506a1acec99a4463c4))
+* Local variables being shadowed by global definitions (#2378)([d253322](https://github.com/Quantinuum/guppylang/commit/d253322bd9d0c4b896ebd84944a7312eee6971f1))
+
+## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.0-rc0...guppylang-internals-v1.1.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* Controlled implementation signature check is not more order-sensitive (#2326)([997c555](https://github.com/Quantinuum/guppylang/commit/997c555692b4c420e2caaa6e0fa29d01c22bda07))
+* Reject unsupported statements in `@guppy.unitary` classes (#2312)([7d91c17](https://github.com/Quantinuum/guppylang/commit/7d91c17243becdc914e5d68da2b9b5325386ed66))
+
+
+## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.4...guppylang-internals-v1.1.0-rc0) (2026-09-09)
+
+
+### Bug Fixes
+
+* Add correct location debug info to calls inside comptime functions (#2229)([4bfd142](https://github.com/Quantinuum/guppylang/commit/4bfd142e9851c39b0dbfe8ae84ed2906b495fed2))
+* Check+trace more functions before compilation starts (#2210)([f98a63c](https://github.com/Quantinuum/guppylang/commit/f98a63c9608e70a8a2dcc291b4e75608fc7e56b5))
+* Unsupported inheritance error for guppy-defined bases (#2211)([5fb7ce4](https://github.com/Quantinuum/guppylang/commit/5fb7ce4610e8c7aed8595332b3e35f01f42f7ef6))
+* Add debug info to nested function definitions (#2112)([2bca2da](https://github.com/Quantinuum/guppylang/commit/2bca2da08625dd0b92ea293fcf058454c49bec9c))
+* Don't emit coercion hint for temporary variables (#2025)([75ed748](https://github.com/Quantinuum/guppylang/commit/75ed748103d984f9f756567161bf43121fc3c02c))
+
+
+### Code Refactoring
+
+* Enforce barrier between checking and compilation stages (#2224)([a018d8c](https://github.com/Quantinuum/guppylang/commit/a018d8c1caa84c15709ce9a5d8a46bf0a81fb330))
+* Extract stringifiers for internal definitions (#2243)([805644d](https://github.com/Quantinuum/guppylang/commit/805644d3005bb55029514a415e8227f52974ff97))
+* Update codebase to python 3.12 (#1991)([d6ef163](https://github.com/Quantinuum/guppylang/commit/d6ef16382b5f18a2dc867b35f9747e3c0ef8bd56))
+* Split unification of consts into a separate function (#2219)([0606a79](https://github.com/Quantinuum/guppylang/commit/0606a7989b7ccdf27e78302a8b6cdd06f9c30509))
+* Reduce verbosity of unitary checker (#2223)([c7692f9](https://github.com/Quantinuum/guppylang/commit/c7692f9c26fa27e41aed8c80da9267356c023167))
+* Remove redundant checks for function type unitary flags (#2203)([4f47823](https://github.com/Quantinuum/guppylang/commit/4f478235a7fef29b20de60c38767a0990d46321e))
+* Do tracing during checking (#2104)([28fffa6](https://github.com/Quantinuum/guppylang/commit/28fffa6b22516d7afa3b3c10075f372b1183d122))
+* Remove EXTENSION_OPS_WITH_SIDE_EFFECTS, pass effects alongside DataflowOp (#2024)([47205e9](https://github.com/Quantinuum/guppylang/commit/47205e950e86cce0acd73a9f57a85a46df3a4078))
+* Remove inheritance of CompiledCallableDef from CallableDef (#2037)([c8fa3b4](https://github.com/Quantinuum/guppylang/commit/c8fa3b436a002962b037e122105a6420feb05939))
+* Remove ProtocolCall (#2034)([218651f](https://github.com/Quantinuum/guppylang/commit/218651f0e33ab9dc0e742fb80155ef3ef0c0821d))
+
+
+### Features
+
+* Compilation for custom modifier implementations (#2274)([79478f3](https://github.com/Quantinuum/guppylang/commit/79478f3ec31e02d3b957942d837b501c79f92d1f))
+* Support static methods on types (#1699)([702bcb0](https://github.com/Quantinuum/guppylang/commit/702bcb09d2aae7c918c0311c6ff4bc5ed6abdb45))
+* Analyse call graph and use it to infer effects to reduce order edges (#2035)([58b8e28](https://github.com/Quantinuum/guppylang/commit/58b8e2897b3a3fc56c94c52716c5a4e8144c15a8))
+* Checking custom modifiers (#2192)([b96b18f](https://github.com/Quantinuum/guppylang/commit/b96b18fea772671f1d89747369e0ed25e9cd2920))
+* Better Error when calling method on Struct class   (#2093)([ed54651](https://github.com/Quantinuum/guppylang/commit/ed546512c15995f0b6011652f893b70cbc935d3a))
+* Add @inline decorator (#1976)([0f79ee4](https://github.com/Quantinuum/guppylang/commit/0f79ee49fa367a2991b3dfa6c30dcf2a35a28dfa))
+* Add better error message for distinct nested functions. (#2208)([2c32ca6](https://github.com/Quantinuum/guppylang/commit/2c32ca67e819b48cfad2da0cf046dbaf519129fd))
+* Support for GPU modules (#1854)([df1bd0c](https://github.com/Quantinuum/guppylang/commit/df1bd0c06efb07dd42869dcca790d881b2f61c3b))
+* Add error message for missing self args (#2188)([08de37a](https://github.com/Quantinuum/guppylang/commit/08de37adec3e0a2df14da599aadce2df8efe3c84))
+* Add target platform configuration for optimizer and emulator (#2180)([20a7af6](https://github.com/Quantinuum/guppylang/commit/20a7af6def72f047977d8af2f70eb462e5ad34f2))
+* Add optional `debug_mode` argument to `compile` and `emulator` (#2126)([bb886d2](https://github.com/Quantinuum/guppylang/commit/bb886d296922ac878c73b98a9f884ac3a54ca575))
+* Add quantum pass to default opt level (#2063)([2970cb5](https://github.com/Quantinuum/guppylang/commit/2970cb5ce9445896c12e3cbc84d76368dd7f4d7d))
+
+
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.3...guppylang-internals-v1.0.4) (2026-09-08)
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.2...guppylang-internals-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.1...guppylang-internals-v1.0.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* Prevent mutation of projections of moved values (#2241)([aeb8598](https://github.com/Quantinuum/guppylang/commit/aeb8598df206fcedf4e0582b6eeeb4cc854cf59d))
+* Internal error in generating function span for missing return annotation error on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
+
 ## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.36.1...guppylang-internals-v1.0.1) (2026-08-03)
 
 
@@ -489,7 +628,7 @@ Note that this release raises the minimum compatible version of `pytket` to `2.7
 
 ### Bug Fixes
 
-* Add a copy before fallable `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
+* Add a copy before fallible `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
 * Raise type inference error when not all function argument types could be resolved. ([#1439](https://github.com/Quantinuum/guppylang/issues/1439)) ([4120d59](https://github.com/Quantinuum/guppylang/commit/4120d590917245258d69ceb07c763c7633c7c5f8)), closes [#1437](https://github.com/Quantinuum/guppylang/issues/1437)
 * Remove leading tab characters from diagnostics during rendering ([#1447](https://github.com/Quantinuum/guppylang/issues/1447)) ([a1cf792](https://github.com/Quantinuum/guppylang/commit/a1cf792deaf90e31721505ac17fd4911737e6c26)), closes [#1101](https://github.com/Quantinuum/guppylang/issues/1101)
 * Support comptime expressions in subscript assignments ([#1433](https://github.com/Quantinuum/guppylang/issues/1433)) ([108c104](https://github.com/Quantinuum/guppylang/commit/108c104d55ecb052d4d7c363062f444efc689724)), closes [#1363](https://github.com/Quantinuum/guppylang/issues/1363)
@@ -599,7 +738,7 @@ nodes to be fed. Migration is trivial.
 * Significant changes to the WASM decorators, types and operations
 * Deleted `guppylang_internals.nodes.{IterHasNext, IterEnd}`
 * guppylang_internals.tracing.unpacking.update_packed_value now returns a bool signalling whether the operation was successful.
-* `CompilationEngine` now initialises all it's fields
+* `CompilationEngine` now initialises all its fields
 * Calling `CompilationEngine.reset` no longer nullifies `additional_extensions`
 * `CompilationEngine.register_extension` no longer adds duplicates to the `additional_extensions` list
 

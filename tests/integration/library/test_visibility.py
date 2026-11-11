@@ -89,7 +89,8 @@ def test_non_members_default_visibility(validate, qualifier):
 
     library = GuppyLibrary.from_members(main)
 
-    compiled_library = library.compile()
+    # Preserve private helpers so their visibility can be inspected.
+    compiled_library = library.with_minimal_opt().compile()
     validate(compiled_library)
     assert _func_names_and_visibilities(compiled_library) == {
         (f"{qualifier}.<locals>.main", "Public"),
@@ -128,7 +129,8 @@ def test_ensure_nested_members_private(validate, qualifier):
 
     library = GuppyLibrary.from_members(main)
 
-    compiled_library = library.compile()
+    # Preserve private helpers so their visibility can be inspected.
+    compiled_library = library.with_minimal_opt().compile()
     validate(compiled_library)
     assert _func_names_and_visibilities(compiled_library) == {
         (f"{qualifier}.<locals>.main", "Public"),

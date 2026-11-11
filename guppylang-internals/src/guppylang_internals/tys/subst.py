@@ -1,4 +1,3 @@
-import functools
 from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any
@@ -8,6 +7,7 @@ from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import Transformer, Visitor
 from guppylang_internals.tys.const import (
     BoundConstVar,
+    ComptimeConstValue,
     Const,
     ConstBase,
     ExistentialConstVar,
@@ -27,17 +27,26 @@ Inst = tuple[Argument, ...]
 PartialInst = Sequence["Argument | None"]
 
 
+def is_concrete_inst(inst: Inst) -> bool:
+    """Whether an instantiation contains no opaque bound variables."""
+    return all(not arg.bound_vars for arg in inst)
+
+
 class Substituter(Transformer):
     """Type transformer that applies a substitution of existential variables."""
 
     def __init__(self, subst: Subst) -> None:
         self.subst = subst
 
-    @functools.singledispatchmethod
     def transform(self, ty: Any) -> Any | None:
-        return None
+        match ty:
+            case ExistentialTypeVar():
+                return self._transform_ExistentialTypeVar(ty)
+            case ExistentialConstVar():
+                return self._transform_ExistentialConstVar(ty)
+            case _:
+                return None
 
-    @transform.register
     def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
         if s := self.subst.get(ty, None):
             assert not isinstance(s, ConstBase)
@@ -51,7 +60,6 @@ class Substituter(Transformer):
             )
         return None
 
-    @transform.register
     def _transform_ExistentialConstVar(self, c: ExistentialConstVar) -> Const | None:
         s = self.subst.get(c, None)
         assert not isinstance(s, TypeBase)
@@ -61,21 +69,39 @@ class Substituter(Transformer):
 class Instantiator(Transformer):
     """Type transformer that instantiates bound variables."""
 
-    def __init__(self, inst: PartialInst, allow_partial: bool = False) -> None:
+    def __init__(
+        self,
+        inst: PartialInst,
+        *,
+        allow_partial: bool = False,
+        require_monomorphization: bool = True,
+    ) -> None:
         self.allow_partial = allow_partial
         self.inst = inst
+        self.require_monomorphization = require_monomorphization
 
-    @functools.singledispatchmethod
     def transform(self, ty: Any) -> Any | None:
-        return None
+        match ty:
+            case ExistentialTypeVar():
+                return self._transform_ExistentialTypeVar(ty)
+            case BoundTypeVar():
+                return self._transform_BoundTypeVar(ty)
+            case BoundConstVar():
+                return self._transform_BoundConstVar(ty)
+            case FunctionType():
+                return self._transform_FunctionType(ty)
+            case ProtocolInst():
+                return self._transform_ProtocolInst(ty)
+            case ComptimeConstValue():
+                return self._transform_ComptimeConstValue(ty)
+            case _:
+                return None
 
-    @transform.register
     def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
         return replace(
             ty, implements=tuple(self.transform(impl) or impl for impl in ty.implements)
         )
 
-    @transform.register
     def _transform_BoundTypeVar(self, ty: BoundTypeVar) -> Type | None:
         # Instantiate if type for the index is available
         if ty.idx < len(self.inst):
@@ -91,10 +117,9 @@ class Instantiator(Transformer):
             ty.idx - len(self.inst),
             ty.copyable,
             ty.droppable,
-            [self.transform(impl) or impl for impl in ty.implements],
+            tuple(self.transform(impl) or impl for impl in ty.implements),
         )
 
-    @transform.register
     def _transform_BoundConstVar(self, c: BoundConstVar) -> Const | None:
         # Instantiate if const value for the index is available
         if c.idx < len(self.inst):
@@ -109,13 +134,27 @@ class Instantiator(Transformer):
             self.transform(c.ty) or c.ty, c.display_name, c.idx - len(self.inst)
         )
 
-    @transform.register
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
 
-    @transform.register
+    def _transform_ComptimeConstValue(self, val: ComptimeConstValue) -> Const:
+        # Update the stored instantiation
+        idx = 0
+        new_inst: list[Argument | None] = []
+        for arg in val.inst:
+            if arg:
+                new_inst.append(arg)
+            else:
+                new_inst.append(self.inst[idx])
+                idx += 1
+
+        ty = val.ty.transform(self)
+        return ComptimeConstValue(
+            ty, val.expr, val.params, new_inst, val.containing_def_id
+        ).try_resolve(self.require_monomorphization)
+
     def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
         return inst.transform(self)
 

@@ -47,6 +47,41 @@ def test_implicit_int_to_float(validate):
     validate(foo.compile_function())
 
 
+def test_local_shadows_python_value(run_int_fn):
+    x = 2
+
+    @guppy
+    def foo() -> int:
+        x = 1
+        return x
+
+    run_int_fn(foo, 1)
+
+
+def test_argument_shadows_python_value(run_int_fn):
+    x = 2
+
+    @guppy
+    def foo(x: int) -> int:
+        return x
+
+    run_int_fn(foo, 1, args=[1])
+
+
+def test_comptime_argument_shadows_python_value(run_int_fn):
+    x = 2
+
+    @guppy
+    def foo(x: int @ comptime) -> int:
+        return x
+
+    @guppy
+    def main() -> int:
+        return foo(1)
+
+    run_int_fn(main, 1)
+
+
 def test_builtin(validate):
     @compile_guppy
     def foo() -> int:
@@ -261,3 +296,17 @@ def test_comptime_args(run_int_fn):
         return foo(10, 20)
 
     run_int_fn(main, -9)
+
+
+def test_generic_body(validate):
+    n = guppy.nat_var("n")
+
+    @guppy
+    def foo(xs: array[int, n]) -> None:
+        ys: array[int, comptime(n + 1)] = array(0 for _ in range(comptime(n + 1)))
+
+    @guppy
+    def main() -> None:
+        foo(array(1, 2))
+
+    validate(main.compile())

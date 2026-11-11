@@ -9,11 +9,14 @@ from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.debug_mode import debug_mode_enabled
+from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
+from guppylang_internals.tys import extract_effect_types
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.function import CheckedFunctionDef
+    from guppylang_internals.tys import EffectType
 
 
 def compile_global_func_def(
@@ -24,6 +27,19 @@ def compile_global_func_def(
     """Compiles a top-level function definition to Hugr."""
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
+    actual_effects: frozenset[EffectType] = frozenset(builder.effects)
+    predicted_effects: frozenset[EffectType] = frozenset(
+        extract_effect_types(ctx.effects[(func.id, func.mono_args)])
+    )
+    if not predicted_effects.issuperset(actual_effects):
+        surplus = actual_effects - predicted_effects
+        raise InternalGuppyError(
+            f"Function {func.name} compiled to have side effects {surplus}"
+            " not expected during checking; callgraph analysis will be unsound."
+        )
+    # Inequality (actual effects < expected) does not lead to wrong behaviour,
+    # merely unnecessary/extra order edges that may inhibit optimization,
+    # so do not break here.
 
 
 def compile_local_func_def(
@@ -93,8 +109,11 @@ def compile_local_func_def(
             # Even though global, this function will be private to the built hugr,
             # so the hugr name does not really matter.
             func.name,
+            mono_args,
             func.cfg,
             func_builder,
+            is_static=False,
+            effects=ctx.effects[(func.def_id, mono_args)],
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

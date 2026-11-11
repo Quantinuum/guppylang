@@ -4,7 +4,8 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
-from collections.abc import Iterator, Sequence
+from __future__ import annotations
+
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import (
@@ -34,26 +35,21 @@ from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import TracingDefMixin
 from guppylang_internals.tracing.util import hide_trace
 from hugr.envelope import GeneratorDesc
-from hugr.hugr import Hugr
 from hugr.metadata import HugrGenerator
-from hugr.package import Package
 from semver import Version
 
 import guppylang
-from guppylang.emulator import EmulatorBuilder, EmulatorInstance, Platform
-from guppylang.emulator._args import (
-    EntrypointArgSpec,
-    unsupported_arg_reason,
-    wrap_entrypoint_with_args,
-)
-from guppylang.emulator.exceptions import EmulatorBuildError
-from guppylang.optimizer import (
-    OptimizationLevel,
-    OptimizerInstance,
-)
+from guppylang.optimizer import OptimizationLevel, OptimizerInstance
 
 if TYPE_CHECKING:
     import ast
+    from collections.abc import Iterator, Sequence
+
+    from hugr.hugr import Hugr
+    from hugr.package import Package
+
+    from guppylang.emulator import EmulatorBuilder, EmulatorInstance, Platform
+    from guppylang.emulator._args import EntrypointArgSpec
 
 __all__ = (
     "GuppyCompilableProgram",
@@ -155,9 +151,7 @@ class GuppyEnumDefinition(GuppyDefinition):
         ):
             member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
             return TracingDefMixin(member_def)
-        raise AttributeError(
-            f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
-        )
+        raise AttributeError(f"{defn.to_caps_str()} has no attribute `{name}`")
 
 
 @runtime_checkable
@@ -197,6 +191,8 @@ class GuppyCompilableProgram(Protocol):
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
+        Raises:
+            EmulatorBuildError: If debug mode is enabled without minimal optimization.
         """
         ...
 
@@ -282,6 +278,8 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
+        Raises:
+            EmulatorBuildError: If debug mode is enabled without minimal optimization.
         """
         return (
             self._with_default_opt()
@@ -296,8 +294,13 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
         platform: Platform = "helios",
+        debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Build an emulator instance from a compiled package."""
+        from guppylang.emulator import EmulatorBuilder
+        from guppylang.emulator._args import wrap_entrypoint_with_args
+        from guppylang.emulator.exceptions import EmulatorBuildError
+
         if libs is not None:
             mod = mod.link(*libs)
 
@@ -339,6 +342,9 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
                 )
             )
 
+        if debug_mode:
+            builder = builder.with_build_arg("debug", True)
+
         return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
 
     @pretty_errors
@@ -348,6 +354,8 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
         Returns an empty list if the entrypoint takes no arguments. Raises a
         `GuppyError` if any argument has an unsupported type.
         """
+        from guppylang.emulator._args import EntrypointArgSpec, unsupported_arg_reason
+
         result = self._compiled_entrypoint_with_inputs()
         if result is None:
             return []
@@ -369,7 +377,7 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
 
     def _compiled_entrypoint_with_inputs(
         self,
-    ) -> tuple[CompiledCallableDef, "ast.FunctionDef"] | None:
+    ) -> tuple[CompiledCallableDef, ast.FunctionDef] | None:
         """Return the compiled entrypoint and its AST node if it has inputs, else
         None.
         """
@@ -382,24 +390,24 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
             return compiled_def, cast("ast.FunctionDef", compiled_def.defined_at)
         return None
 
-    def with_opt_level(self, level: OptimizationLevel) -> "OptimizerInstance[P, Out]":
+    def with_opt_level(self, level: OptimizationLevel) -> OptimizerInstance[P, Out]:
         """Configure the optimization level used when compiling this function."""
         return OptimizerInstance(self, level.passes())
 
-    def with_minimal_opt(self) -> "OptimizerInstance[P, Out]":
+    def with_minimal_opt(self) -> OptimizerInstance[P, Out]:
         """Configure the function to use minimal optimization when compiling.
 
         Equivalent to `with_opt_level(OptimizationLevel.Minimal)`.
         """
         return self.with_opt_level(OptimizationLevel.Minimal)
 
-    def _with_default_opt(self) -> "OptimizerInstance[P, Out]":
+    def _with_default_opt(self) -> OptimizerInstance[P, Out]:
         """Configure the function to use the default optimization level.
 
         Equivalent to `with_opt_level(OptimizationLevel.Default)`."""
         return self.with_opt_level(OptimizationLevel.Default)
 
-    def with_target_platform(self, platform: Platform) -> "OptimizerInstance[P, Out]":
+    def with_target_platform(self, platform: Platform) -> OptimizerInstance[P, Out]:
         """Configure the target platform used when building the emulator."""
         return self._with_default_opt().with_target_platform(platform)
 

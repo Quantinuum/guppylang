@@ -1,0 +1,15 @@
+Error: Invalid expression in dagger (at $FILE:14:12)
+   | 
+12 | def test(t: tuple[tuple[qubit, int], qubit]) -> None:
+13 |     with dagger:
+14 |         foo(t)
+   |             ^ Mixed quantum and classical tuple `((qubit, int), qubit)`
+   |               found in a dagger context
+
+Note: Structs and tuples used in daggered contexts must contain either only
+quantum or only classical data.
+
+Help: Consider using the elements of `t` individually instead of the whole
+tuple, e.g. `t[0][0]`, `t[0][1]`, `t[1]`
+
+Guppy compilation failed due to 1 previous error

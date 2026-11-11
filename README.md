@@ -53,7 +53,7 @@ teleport.check()
 
 ## Install
 
-Guppy can be installed via `pip`. Requires Python >= 3.10.
+Guppy can be installed via `pip`. Requires Python >= 3.12.
 
 ```sh
 pip install guppylang

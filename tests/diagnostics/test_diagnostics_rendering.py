@@ -260,3 +260,26 @@ def test_leading_tab_characters_multi_line_span_varying_tabs(snapshot, request):
     span = Span(Loc(file, 1, 2), Loc(file, 3, 3 + 15))
     diagnostic = MyError(span)
     run_test(source, diagnostic, snapshot, request)
+
+
+def test_cross_file_note(snapshot, request):
+    @dataclass(frozen=True)
+    class MySubDiagnostic(Note):
+        span_label: ClassVar[str] = "`Other` defined here"
+
+    primary = "primary.py"
+    other = "other.py"
+    sources = SourceMap()
+    sources.add_file(primary, "use Other\n")
+    sources.add_file(other, "class Other:\n    pass\n")
+    diagnostic = MyError(Span(Loc(primary, 1, 4), Loc(primary, 1, 9)))
+    diagnostic.add_sub_diagnostic(
+        MySubDiagnostic(Span(Loc(other, 1, 6), Loc(other, 1, 11)))
+    )
+
+    renderer = DiagnosticsRenderer(sources)
+    renderer.render_diagnostic(diagnostic)
+    out = "\n".join(renderer.buffer)
+
+    snapshot.snapshot_dir = str(Path(request.fspath).parent / "snapshots")
+    snapshot.assert_match(out, f"{request.node.name}.txt")

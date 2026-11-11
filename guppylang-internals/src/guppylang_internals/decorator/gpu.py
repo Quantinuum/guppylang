@@ -14,6 +14,7 @@ from guppylang_internals.std._internal.compiler.gpu import (
     GpuModuleInitCompiler,
 )
 from guppylang_internals.std._internal.decorator import ext_module_decorator
+from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
     import ast
@@ -39,8 +40,8 @@ def gpu_module[T](
 
     create_decorator = ext_module_decorator(  # type: ignore[var-annotated]
         type_def_wrapper,
-        GpuModuleInitCompiler(),
-        GpuModuleDiscardCompiler(),
+        (GpuModuleInitCompiler(), [Effect.PANIC]),
+        (GpuModuleDiscardCompiler(), []),
         init_arg=False,
     )
     return create_decorator(filename, config_filename)
@@ -92,9 +93,4 @@ def _gpu_helper[**P, T](
 # Override decorators with dummy versions if we're running a sphinx build
 if not TYPE_CHECKING and sphinx_running():
     gpu_module = _dummy_custom_decorator
-
-    # Support both forms of the decorator
-    def gpu(*args: object, **kwargs: object):  # type: ignore[no-redef]
-        if len(args) == 1 and callable(args[0]) and not kwargs:
-            return args[0]
-        return _dummy_custom_decorator(*args, **kwargs)
+    gpu = _dummy_custom_decorator()

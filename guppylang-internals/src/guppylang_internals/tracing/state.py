@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.common import ToHugrContext
 
@@ -29,6 +30,10 @@ class TracingState:
 
     #: The function definition currently being traced.
     function_definition: "TracedFunctionDef"  # quotes to avoid circular import
+
+    #: A call graph node representing the currently traced function, including the
+    # maximum effects that the function is allowed to perform
+    current_caller: MonoDefId | None
 
     #: Set of all allocated undroppable GuppyObjects where the `used` flag is not set,
     #: indexed by their id. This is used to detect linearity violations.

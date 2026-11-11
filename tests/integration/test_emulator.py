@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from guppylang.decorator import expected_qubits, guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator.exceptions import EmulatorBuildError
@@ -57,9 +60,51 @@ def test_basic_emulation() -> None:
         h(q)
         output("c", measure(q).read())
 
-    res = main.emulator(1).statevector_sim().with_seed(42).run()
+    res = main.emulator(1).statevector_sim().with_seed(42, mode="legacy").run()
     expected = EmulatorResult([[("c", True)]])
     assert res == expected
+
+
+def test_emulator_analysis(snapshot, request) -> None:
+    """Analysis data is collected per shot without changing the run API."""
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        h(q)
+        outcome = measure(q).read()
+        output("outcome", outcome)
+        if outcome:
+            output("branch", measure(qubit()).read())
+
+    result = (
+        main.emulator(2)
+        .coinflip_sim()
+        .with_seed(42)
+        .with_shots(2)
+        .with_trace()
+        .with_metrics()
+        .run()
+    )
+
+    assert len(result.results) == 2
+    assert len(result.circuits()) == 2
+    snapshot.snapshot_dir = str(Path(request.fspath).parent / "snapshots")
+    snapshot.assert_match(
+        json.dumps(result.metrics(), indent=2, sort_keys=True),
+        f"{request.node.name}_metrics.json",
+    )
+    snapshot.assert_match(
+        json.dumps(
+            [
+                trace.clear_simulator_perf_timing().model_dump()
+                for trace in result.traces()
+            ],
+            indent=2,
+            sort_keys=True,
+        ),
+        f"{request.node.name}_traces.json",
+    )
 
 
 def test_all_options() -> None:
@@ -124,7 +169,9 @@ def test_hinted_qubits() -> None:
     def main() -> None:
         output("c", measure(qubit()).read())
 
-    shots = main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
+    shots = (
+        main.emulator().coinflip_sim().with_seed(0, mode="legacy").with_shots(1).run()
+    )
     assert shots[0].as_dict()["c"] == 1
 
 
@@ -135,7 +182,13 @@ def test_hinted_qubits_with_given_qubits() -> None:
         qubits = array(qubit() for _ in range(4))
         output("c", collect_measurements(measure_array(qubits)))
 
-    shots = main.emulator(n_qubits=4).coinflip_sim().with_seed(0).with_shots(1).run()
+    shots = (
+        main.emulator(n_qubits=4)
+        .coinflip_sim()
+        .with_seed(0, mode="legacy")
+        .with_shots(1)
+        .run()
+    )
     assert shots[0].as_dict()["c"] == [1, 0, 1, 0]
 
 
@@ -179,7 +232,12 @@ def _build_run(
     n_shots: int = 1,
     seed: int | None = None,
 ) -> EmulatorResult:
-    return program.emulator(n_qubits).with_shots(n_shots).with_seed(seed).run()
+    return (
+        program.emulator(n_qubits)
+        .with_shots(n_shots)
+        .with_seed(seed, mode="legacy")
+        .run()
+    )
 
 
 def test_zeros():
@@ -405,7 +463,11 @@ def get_statevector(main: GuppyFunctionDefinition, n_qubits: int) -> StateVector
         discard_array(qs)
 
     results = (
-        wrapper.emulator(n_qubits).statevector_sim().with_shots(1).with_seed(12).run()
+        wrapper.emulator(n_qubits)
+        .statevector_sim()
+        .with_shots(1)
+        .with_seed(12, mode="legacy")
+        .run()
     )
     partials = results.partial_state_dicts()[0]
     return partials["result_state"].as_single_state()

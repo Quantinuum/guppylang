@@ -1,0 +1,21 @@
+from guppylang.decorator import guppy
+from guppylang.std.num import nat
+from guppylang.std.quantum import array, cx, h, measure, qubit
+from guppylang.std.builtins import dagger
+
+
+@guppy.unitary
+class foo:
+    @guppy
+    def __call__(q: qubit) -> None:
+        h(q)
+        c = qubit()
+        measure(c)
+
+
+@guppy(unitary=True)
+def main(q: qubit) -> None:
+    foo(q)
+
+main.check()
+

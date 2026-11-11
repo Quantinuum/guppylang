@@ -68,20 +68,6 @@ class ErrorVal(hv.ExtensionValue):
         resolver.register(hugr.std.prelude.PRELUDE_EXTENSION)
 
 
-def panic(
-    inputs: list[ht.Type], outputs: list[ht.Type], kind: AbortKind = AbortKind.Panic
-) -> OpWithEffects:
-    """Returns an operation that panics."""
-    name = "panic" if kind == AbortKind.Panic else "exit"
-    op_def = hugr.std.PRELUDE.get_op(name)
-    args: list[ht.TypeArg] = [
-        ht.ListArg([ht.TypeTypeArg(ty) for ty in inputs]),
-        ht.ListArg([ht.TypeTypeArg(ty) for ty in outputs]),
-    ]
-    sig = ht.FunctionType([error_type(), *inputs], outputs)
-    return (ops.ExtOp(op_def, sig, args), [Effect.ANY])
-
-
 def make_error() -> OpWithEffects:
     """Returns an operation that makes an error (and returns the error as a value,
     does nothing to raise it)."""
@@ -96,15 +82,22 @@ def make_error() -> OpWithEffects:
 # ------------------------------------------------------
 
 
-def build_panic(
+def build_abort(
     builder: DFBuilder,
     in_tys: ht.TypeRow,
     out_tys: ht.TypeRow,
     err: Wire,
+    kind: AbortKind,
     *args: Wire,
 ) -> Node:
-    """Builds a panic operation."""
-    op = panic(in_tys, out_tys, AbortKind.Panic)
+    """Builds an operation that ends the current shot according to `kind`."""
+    op_def = hugr.std.PRELUDE.get_op(kind.op_name)
+    ty_args: list[ht.TypeArg] = [
+        ht.ListArg([ht.TypeTypeArg(ty) for ty in in_tys]),
+        ht.ListArg([ht.TypeTypeArg(ty) for ty in out_tys]),
+    ]
+    sig = ht.FunctionType([error_type(), *in_tys], out_tys)
+    op = (ops.ExtOp(op_def, sig, ty_args), kind.effects)
     return builder.add_op(op, err, *args)
 
 
@@ -139,11 +132,12 @@ def build_unwrap_either(
     error = build_static_error(case, error_signal, error_msg)
     with case.set_ast_context(builder.current_ast_node):
         case.set_outputs(
-            *build_panic(
+            *build_abort(
                 case,
                 in_tys,
                 out_tys,
                 error,
+                AbortKind.Panic,
                 *case.inputs(),
             )
         )
@@ -237,7 +231,7 @@ def _build_unwrap_result(func: DFBuilder, result_type_var: ht.Variable) -> None:
     case = conditional.add_case(0)
     [error] = list(case.inputs())
     case.set_outputs(
-        *build_panic(
+        *build_abort(
             # We don't want misleading debug info in global functions until
             # https://github.com/Quantinuum/guppylang/issues/1609 is implemented,
             # so `current_ast_node`is None here by default
@@ -245,6 +239,7 @@ def _build_unwrap_result(func: DFBuilder, result_type_var: ht.Variable) -> None:
             [error_type()],
             [result_type_var],
             error,
+            AbortKind.Panic,
             *case.inputs(),
         )
     )
@@ -284,7 +279,7 @@ def unwrap_result(
     func_call = builder.call(
         func,
         either,
-        effects=[Effect.ANY],  # panics
+        effects=[Effect.PANIC],
         instantiation=concrete_ty,
         type_args=type_args,
     )

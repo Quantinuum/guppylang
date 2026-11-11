@@ -1,0 +1,13 @@
+Error: Not enough arguments (at $FILE:15:16)
+   | 
+13 | @guppy
+14 | def main() -> None:
+15 |     MyStruct.foo()
+   |                 ^^ Missing argument (expected 1, got 0)
+
+Note: Function signature is `MyStruct -> None`
+
+Help: `foo` is an instance method. Maybe you meant to access it on an instance,
+e.g. `MyStruct(...).foo(...)`?
+
+Guppy compilation failed due to 1 previous error

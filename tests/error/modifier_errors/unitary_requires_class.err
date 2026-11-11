@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "$FILE", line 4, in <module>
+    @guppy.unitary
+TypeError: `@guppy.unitary` must be applied directly to a class

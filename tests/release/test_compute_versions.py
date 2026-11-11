@@ -30,6 +30,10 @@ POSITIVE_BUMP_TESTS = [
     ("1.0.0-a5", "rc", "1.0.0-rc0"),
     ("1.0.0-b2", "rc", "1.0.0-rc0"),
     ("1.0.0-rc1", "rc", "1.0.0-rc2"),
+    # rc-{patch,minor,major}: start a fresh rc series off a core bump.
+    ("1.2.3", "rc-patch", "1.2.4-rc0"),
+    ("1.2.3", "rc-minor", "1.3.0-rc0"),
+    ("1.2.3", "rc-major", "2.0.0-rc0"),
     # stable: drop the pre-release suffix.
     ("1.0.0-a5", "stable", "1.0.0"),
     ("1.0.0-rc2", "stable", "1.0.0"),
@@ -41,6 +45,17 @@ POSITIVE_BUMP_TESTS = [
     ("1.3.0", "major", "2.0.0"),
     ("1.3.0-a5", "major", "2.0.0"),
 ]
+
+
+def test_guppy_version_ordering() -> None:
+    """Order release stages and count prerelease suffixes numerically."""
+    parse = cv.parse_guppy_version
+    assert parse("1.2.0-a2") < parse("1.2.0-a10")
+    assert parse("1.2.0-a10") < parse("1.2.0-b0")
+    assert parse("1.2.0-b0") < parse("1.2.0-rc0")
+    assert parse("1.2.0-rc0") < parse("1.2.0")
+    assert parse("1.2.0") < parse("1.2.1-a0")
+    assert parse("1.2.0") >= parse("1.2.0-rc0")
 
 
 @pytest.mark.parametrize(("current", "mode", "expected"), POSITIVE_BUMP_TESTS)

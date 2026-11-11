@@ -28,7 +28,19 @@ updates:
     labels:
       - "C-maintenance"
       - "X-dependabot"
-    versioning-strategy: "widen"
+    # Do not bump the minimal version of dependencies.
+    #
+    # Bumping the minimum can be a breaking change for downstream python users,
+    # as they may break their dependency resolution and prevent them from updating.
+    #
+    # Ideally we'd widen the upper bound.
+    # The dependabot documentation indicates this can be done by setting versioning-strategy to "widen",
+    # but this returned errors saying that the value is invalid.
+    # (https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#versioning-strategy--)
+    #
+    # See the uv versioning-strategy issue:
+    # <https://github.com/dependabot/dependabot-core/issues/15290>
+    versioning-strategy: "lockfile-only"
 
   - package-ecosystem: "github-actions"
     directory: "/"

@@ -803,19 +803,29 @@ class BBLinearityChecker(ast.NodeVisitor):
         # Check captured variables: we check that the modifier is not using
         # consumed variables
         for var, use in node.captured.values():
-            use_kind = (
-                UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
-            )
+            # Non-copyable captured places are passed as borrowed inputs to the body
+            use_kind = UseKind.CONSUME if var.ty.copyable else UseKind.BORROW
             for place in leaf_places(var):
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
-                    used_err = AlreadyUsedError(use, place, use_kind)
-                    used_err.add_sub_diagnostic(
-                        AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
-                    )
+                    if var != place:
+                        used_err = AlreadyUsedError(use, var, use_kind)
+                        used_err.add_sub_diagnostic(
+                            AlreadyUsedError.MemberPrevUse(
+                                prev_use.node, place, prev_use.kind
+                            )
+                        )
+                    else:
+                        used_err = AlreadyUsedError(use, place, use_kind)
+                        used_err.add_sub_diagnostic(
+                            AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
+                        )
                     if has_explicit_copy(place.ty):
                         used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(used_err)
+
+            # Also check if parents have been moved
+            check_mutable_parent_already_used(var, Use(use, use_kind, var), self.scope)
             self.scope.use(var, node, use_kind)
 
         # reassign controls
@@ -828,7 +838,7 @@ class BBLinearityChecker(ast.NodeVisitor):
 
         # reassign captured variables
         for var, use in node.captured.values():
-            if InputFlags.Inout in var.flags:
+            if not var.ty.copyable:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
 

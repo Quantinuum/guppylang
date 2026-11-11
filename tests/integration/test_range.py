@@ -171,7 +171,7 @@ def test_range_zero_step_panic() -> None:
         output("_test_output", total)
 
     with pytest.raises(EmulatorError, match=r"range\(\) arg 3 must not be zero"):
-        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
+        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42, mode="legacy").run()
 
 
 def test_range_reverse_zero_step_panic() -> None:
@@ -188,4 +188,4 @@ def test_range_reverse_zero_step_panic() -> None:
         output("_test_output", 0)
 
     with pytest.raises(EmulatorError, match=r"Range.__reversed__: step is zero"):
-        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
+        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42, mode="legacy").run()

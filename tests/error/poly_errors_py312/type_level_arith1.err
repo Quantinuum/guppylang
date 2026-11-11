@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:14:11)
+   | 
+12 | @guppy
+13 | def main() -> array[int, 8]:
+14 |     return foo(array(1, 2, 3))
+   |            ^^^^^^^^^^^^^^^^^^^ Expected expression of type `array[int, 8]`, got `array[int,
+   |                                6]`
+
+Guppy compilation failed due to 1 previous error

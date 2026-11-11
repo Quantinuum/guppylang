@@ -1,6 +1,6 @@
 Error: Unexpected function body (at $FILE:6:4)
   | 
-4 | @custom_function()
+4 | @custom_function(effects=())
 5 | def foo(x: int) -> int:
 6 |     return x
   |     ^^^^^^^^ Body of custom function `foo` must be empty

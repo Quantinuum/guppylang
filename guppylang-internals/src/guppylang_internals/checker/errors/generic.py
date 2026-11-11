@@ -76,6 +76,22 @@ class UnknownModifierError(Error):
 
 
 @dataclass(frozen=True)
+class RecursiveModifierControlCountError(Error):
+    title: ClassVar[str] = "Increasing control count in recursive custom modifier"
+    span_label: ClassVar[str] = (
+        "This recursive call increases the number of controls from "
+        "{previous_count} to {control_count}"
+    )
+    message: ClassVar[str] = (
+        "A recursive custom controlled implementation that increases the number "
+        "of controls prevents the compiler from determining the required control "
+        "count."
+    )
+    previous_count: int
+    control_count: int
+
+
+@dataclass(frozen=True)
 class UnexpectedInWithBlockError(Error):
     title: ClassVar[str] = "Unexpected {kind}"
     span_label: ClassVar[str] = "{things} found in a `With` block"
@@ -121,3 +137,51 @@ class InvalidUnderDagger(Error):
             "Control flow statements (e.g. loops and branches) are not allowed in "
             "daggered contexts."
         )
+
+    @dataclass(frozen=True)
+    class MixedTypeNote(Note):
+        message: ClassVar[str] = (
+            "Structs and tuples used in daggered contexts must contain either only "
+            "quantum or only classical data."
+        )
+
+    @dataclass(frozen=True)
+    class UseTupleElementsHelp(Help):
+        message: ClassVar[str] = (
+            "Consider using the elements of `{name}` individually instead of the "
+            "whole tuple, e.g. {rendered_examples}"
+        )
+        name: str
+        examples: tuple[str, ...]
+
+        @property
+        def rendered_examples(self) -> str:
+            return ", ".join(f"`{ex}`" for ex in self.examples)
+
+    @dataclass(frozen=True)
+    class UseStructFieldsHelp(Help):
+        message: ClassVar[str] = (
+            "Consider using the fields of `{name}` individually instead of the "
+            "whole struct, e.g. {rendered_examples}"
+        )
+        name: str
+        examples: tuple[str, ...]
+
+        @property
+        def rendered_examples(self) -> str:
+            return ", ".join(f"`{ex}`" for ex in self.examples)
+
+    @dataclass(frozen=True)
+    class TupleLiteralHelp(Help):
+        message: ClassVar[str] = (
+            "Consider using the values directly instead of packing them into a tuple"
+        )
+
+    @dataclass(frozen=True)
+    class AssignProjectionHelp(Help):
+        message: ClassVar[str] = (
+            "Assigning to `{target}` modifies the whole of `{root}`. Consider "
+            "assigning to a separate variable instead"
+        )
+        target: str
+        root: str

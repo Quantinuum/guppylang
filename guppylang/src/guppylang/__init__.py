@@ -4,6 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.defs import GuppyCompilableProgram
 from guppylang.module import GuppyModule
 from guppylang.optimizer import (
+    LibraryOptimizerInstance,
     OptimizationLevel,
     OptimizerInstance,
 )
@@ -14,6 +15,7 @@ from guppylang.std.quantum import qubit
 __all__ = (
     "GuppyCompilableProgram",
     "GuppyModule",
+    "LibraryOptimizerInstance",
     "OptimizationLevel",
     "OptimizerInstance",
     "array",
@@ -29,4 +31,4 @@ __all__ = (
 
 # This is kept in sync with the project version by the release workflow
 # (.github/workflows/release-pr.yml).
-__version__ = "1.0.1"
+__version__ = "1.2.0"

@@ -1,0 +1,11 @@
+Error: Invalid `@guppy.unitary` method (at $FILE:10:4)
+   | 
+ 8 |         pass
+ 9 | 
+10 |     def controlled() -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+11 |         pass
+   | ^^^^^^^^^^^^ `controlled` in the `@guppy.unitary` class `Foo` must be a
+   |              guppy function
+
+Guppy compilation failed due to 1 previous error

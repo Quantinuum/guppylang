@@ -133,7 +133,7 @@ class EmulatorBuilder:
 
     def build(
         self,
-        package: Package,
+        package: Package | bytes,
         n_qubits: int,
         arg_specs: Sequence[EntrypointArgSpec] = (),
     ) -> EmulatorInstance:

@@ -29,7 +29,7 @@ shell by setting up [direnv](https://devenv.sh/automatic-shell-activation/).
 To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
-- uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
+- uv `>=12.0`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
   - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
     or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
@@ -116,7 +116,7 @@ and open it with your favourite coverage viewer. In VSCode, you can use
 
 ## 🌐 Contributing to Guppy
 
-We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
+We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [fork](https://github.com/Quantinuum/guppylang/fork) the repo and make a pull request if you have any questions or suggestions.
 
 PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
 
@@ -159,7 +159,7 @@ We use Rust-style release branches, one per minor series:
 
 - `main` develops the **next minor** as an alpha series (e.g. `1.6.0-a0`,
   `1.6.0-a1`, …).
-- When a minor is ready to stabilise (feature-freeze), a long-lived
+- When a minor is ready to stabilize (feature-freeze), a long-lived
   `release/<major>.<minor>` branch is cut from `main` (e.g. `release/1.6`). The
   `rc → stable → patch` lifecycle then happens **on that branch** (`1.6.0-rc0`,
   …, `1.6.0`, `1.6.1`, …).
@@ -262,19 +262,22 @@ present, and vice versa.
 Release creation is **driven by tags**. When the release PR is merged (into `main`
 or a release branch), the `tag-release-line` job in `release-publish.yml` tags both
 packages (`guppylang-v<version>` and `guppylang-internals-v<version>`) and pushes
-the tags. Each tag push then triggers the `create-release` job, which creates a
-**draft** GitHub release for the matching package, with notes sliced verbatim from
-the committed changelog at that tag.
+the tags. Each tag push then triggers the `create-release` job, which publishes a
+GitHub release for the matching package, with notes sliced verbatim from the
+committed changelog at that tag. Publishing triggers `python-wheels.yml`, which
+builds, checks, and uploads the wheels to PyPI.
 
-Review each draft release and **publish** it when ready: publishing triggers
-`python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only published
-once you publish the draft release, not when the tag first creates it.
+Alpha, beta, and release candidates for either package are marked **Prerelease**
+releases in GitHub. Only the highest stable `guppylang` tag is marked
+**Latest**. Stable `guppylang-internals` releases get neither label.
 
 ### After-release chores
 
-After a release is made, the main branch needs to be updated to reflect the newest version and changelog.
-Create a PR that updates version references and the changelog on the main branch (by cherry-picking the release commit).
-You should not update the version (i.e. only update the changelog) if the main branch already tracks the alpha of the next version!
+After a release is made, the `release-sync-main.yml` workflow generates a pull request updating the main branch to reflect the newest version and changelog.
+Review and merge this pull request to keep `main` up to date with the latest release.
+
+To retry or sync an older published release, run **Sync published release to
+main** manually from `main` and enter its `guppylang-v<version>` release tag.
 
 ## :back: Backports & Patch releases
 
@@ -292,6 +295,6 @@ Once the backport is complete (the backport PR is merged), the `B-backport-nomin
 
 ### Patch releases
 
-Once the backport is complete, `release-pr.yml` then opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next patch version. Merge it, and `release-publish.yml` tags and drafts the releases as usual.
+Once the backport is complete, `release-pr.yml` then opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next patch version. Merge it, and `release-publish.yml` tags and publishes the releases as usual.
 After the release is published, make sure the version and changelog changes are
 reflected on `main` so the history stays consistent.

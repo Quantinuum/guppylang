@@ -1,0 +1,14 @@
+Error: Control constraint violation (at $FILE:16:8)
+   | 
+14 | 
+15 |     with control(q):
+16 |         generic_function(x)
+   |         ^^^^^^^^^^^^^^^^^^^ This function cannot be called in a controllable context
+
+Help: Consider adding the flag `(controllable=True)` to the decorator of the
+function `generic_function` or adding a custom `controlled` implementation using
+the `@guppy.unitary` decorator
+
+Note: Error occurred while checking the instantiation `T := qubit`
+
+Guppy compilation failed due to 1 previous error

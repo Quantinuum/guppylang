@@ -18,6 +18,9 @@ Bump modes:
 * ``alpha-major`` -> ``1.2.3`` becomes ``2.0.0-a0``
 * ``beta``  -> ``1.0.0-a1`` becomes ``1.0.0-b0``; ``b1`` becomes ``b2``
 * ``rc``    -> ``1.0.0-X``  becomes ``1.0.0-rc0``; ``rc1`` becomes ``rc2``
+* ``rc-patch`` -> ``1.2.3`` becomes ``1.2.4-rc0``
+* ``rc-minor`` -> ``1.2.3`` becomes ``1.3.0-rc0``
+* ``rc-major`` -> ``1.2.3`` becomes ``2.0.0-rc0``
 * ``stable``-> ``1.0.0-X``  becomes ``1.0.0`` (drops the pre-release)
 * ``patch`` -> ``1.0.1``    becomes ``1.0.2``
 * ``minor`` -> ``1.2.1``    becomes ``1.3.0``
@@ -32,6 +35,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import total_ordering
 from pathlib import Path
 
 
@@ -43,6 +47,9 @@ class BumpMode(StrEnum):
     alpha_major = "alpha-major"
     beta = "beta"
     rc = "rc"
+    rc_patch = "rc-patch"
+    rc_minor = "rc-minor"
+    rc_major = "rc-major"
     stable = "stable"
     patch = "patch"
     minor = "minor"
@@ -76,6 +83,7 @@ _INTERNALS_DEP_RE = re.compile(r'"guppylang-internals[^"]*"')
 _CORE_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
+@total_ordering
 @dataclass(frozen=True)
 class GuppyVersion:
     major: int
@@ -87,6 +95,25 @@ class GuppyVersion:
     @property
     def is_prerelease(self) -> bool:
         return self.pre_label is not None
+
+    def __lt__(self, other: object) -> bool:
+        """Compare release versions, counting prerelease numbers numerically."""
+        if not isinstance(other, GuppyVersion):
+            return NotImplemented
+        ranks = {PreLabel.alpha: 0, PreLabel.beta: 1, PreLabel.rc: 2, None: 3}
+        return (
+            self.major,
+            self.minor,
+            self.patch,
+            ranks[self.pre_label],
+            self.pre_num or 0,
+        ) < (
+            other.major,
+            other.minor,
+            other.patch,
+            ranks[other.pre_label],
+            other.pre_num or 0,
+        )
 
     def render(self) -> str:
         core = f"{self.major}.{self.minor}.{self.patch}"
@@ -184,6 +211,21 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
             return GuppyVersion(
                 current.major, current.minor, current.patch, PreLabel.rc, next_num
             )
+
+        case BumpMode.rc_patch:
+            return GuppyVersion(
+                current.major,
+                current.minor,
+                current.patch + 1,
+                PreLabel.rc,
+                pre_num=0,
+            )
+        case BumpMode.rc_minor:
+            return GuppyVersion(
+                current.major, current.minor + 1, 0, PreLabel.rc, pre_num=0
+            )
+        case BumpMode.rc_major:
+            return GuppyVersion(current.major + 1, 0, 0, PreLabel.rc, pre_num=0)
 
         case BumpMode.stable:
             if not current.is_prerelease:

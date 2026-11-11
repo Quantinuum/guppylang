@@ -93,6 +93,30 @@ See the :py:class:`EmulatorInstance` documentation for a full list of options an
 defaults.
 
 
+Program analysis
+----------------
+
+Instruction traces, circuits, and execution metrics can be collected by configuring the
+emulator instance. Configure the desired analyses before calling either ``run`` or
+``run_per_shot`` and retrieve their per-shot data from the result:
+
+.. code-block:: python
+
+    emulator = foo.emulator(n_qubits=1).with_trace().with_metrics()
+    result = emulator.run()
+
+    trace = result.traces()[0]
+    circuit = result.circuits()[0]
+    metrics = result.metrics()[0]
+
+Trace collection records the executed instruction stream. It can differ between shots
+because of measurement-controlled branches or other sources of nondeterminism, such as
+random-number generation or stochastic error models. Each :py:class:`Trace` contains
+ordered events from the user program, runtime, error model, and simulator; its
+``get_*_trace()`` methods select events from a single execution stage. Circuit
+conversion is performed only when :py:meth:`EmulatorResult.circuits` is called.
+
+
 Noisy simulation
 -----------------
 
@@ -277,7 +301,15 @@ standard library used:
 from .builder import EmulatorBuilder, Platform
 from .exceptions import EmulatorError
 from .instance import EmulatorInstance
-from .result import EmulatorResult, QsysShot, TaggedResult
+from .result import (
+    EmulatorResult,
+    MetricGroup,
+    MetricValue,
+    QsysShot,
+    ShotMetrics,
+    TaggedResult,
+    Trace,
+)
 from .state import PartialState, PartialVector, StateVector, TracedState
 
 __all__ = [
@@ -285,11 +317,15 @@ __all__ = [
     "EmulatorError",
     "EmulatorInstance",
     "EmulatorResult",
+    "MetricGroup",
+    "MetricValue",
     "PartialState",
     "PartialVector",
     "Platform",
     "QsysShot",
+    "ShotMetrics",
     "StateVector",
     "TaggedResult",
+    "Trace",
     "TracedState",
 ]

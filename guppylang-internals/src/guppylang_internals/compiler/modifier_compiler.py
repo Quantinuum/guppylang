@@ -21,7 +21,6 @@ from guppylang_internals.std._internal.compiler.array import (
     unpack_array,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import MODIFIER_EXTENSION
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import int_type, is_array_type
 from guppylang_internals.tys.ty import InputFlags
 
@@ -69,9 +68,7 @@ def compile_modified_block(
     # compile body
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
-    # EFFECTS we should pull out the actual effects from func_builder,
-    # e.g. func_builder._last_side_effect.keys(), but preserving previous behaviour
-    effects = [Effect.ANY]
+    effects = func_builder.effects
 
     # Add the LoadFunc node
     call = dfg.builder.load_function(func_builder, hugr_ty)
@@ -144,6 +141,10 @@ def compile_modified_block(
     for i, control in enumerate(modified_block.control):
         if is_array_type(get_type(control.ctrl[0])):
             control_array = expr_compiler.compile(control.ctrl[0], dfg)
+            # Note we assume this can panic (as any array_to_std_array) if the array has
+            # any missing/borrowed elements. If we could guarantee that the controls do
+            # not come from/though a custom-modifier (that might `array.take()` qubits),
+            # then this array_to_std_array will not panic.
             control_array = dfg.builder.add_op(
                 array_to_std_array(ht.Qubit, qubit_num_args[i]), control_array
             )
@@ -153,6 +154,8 @@ def compile_modified_block(
             control_array = dfg.builder.add_op(
                 array_new(ht.Qubit, len(control.ctrl)), *cs
             )
+            # TODO this array_to_std_array never panics; we could mark it so explicitly,
+            # or better, create a new std_array in a single op.
             control_array = dfg.builder.add_op(
                 array_to_std_array(ht.Qubit, qubit_num_args[i]), *control_array
             )
@@ -187,6 +190,8 @@ def compile_modified_block(
             control_array = dfg.builder.add_op(
                 std_array_to_array(ht.Qubit, qubit_num_args[i]), outport
             )
+            # TODO this unpack never panics; we could mark it so explicitly,
+            # or better, unpack the std_array directly.
             unpacked = unpack_array(dfg.builder, control_array)
             for c, new_c in zip(control.ctrl, unpacked, strict=False):
                 assert isinstance(c, PlaceNode)
@@ -196,7 +201,7 @@ def compile_modified_block(
 
     for arg in captured:
         # captured inout values are returned after the control arrays.
-        if InputFlags.Inout in arg.flags:
+        if not arg.ty.copyable:
             dfg[arg] = next(outports)
 
     for subscript in control_subscripts:

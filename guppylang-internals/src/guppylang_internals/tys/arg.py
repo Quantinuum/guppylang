@@ -14,6 +14,7 @@ from guppylang_internals.tys.common import (
 )
 from guppylang_internals.tys.const import (
     BoundConstVar,
+    ComptimeConstValue,
     Const,
     ConstValue,
     ExistentialConstVar,
@@ -35,7 +36,7 @@ type Argument = "TypeArg | ConstArg"
 
 @dataclass(frozen=True)
 class ArgumentBase(ToHugr[ht.TypeArg], Transformable["Argument"], ABC):
-    """Abstract base class for arguments of parametrized types.
+    """Abstract base class for arguments of parameterized types.
 
     For example, in the type `array[int, 42]` we have two arguments `int` and `42`.
     """
@@ -119,6 +120,11 @@ class ConstArg(ArgumentBase):
                 raise InternalGuppyError(
                     "Tried to convert generic variable to Hugr. This should have been "
                     "been monomorphized away."
+                )
+            case ComptimeConstValue():
+                raise InternalGuppyError(
+                    "Tried to convert comptime const value to Hugr. This should have "
+                    "been replaced with a concrete value during monomorphization."
                 )
             case ConstValue():
                 raise InternalGuppyError(

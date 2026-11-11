@@ -20,7 +20,9 @@ fn main() {
 }
 """
 
-from guppylang import guppy
+from guppylang import array, guppy, qubit
+from guppylang.std.quantum import h
+from guppylang.std.builtins import control, dagger, nat
 from tests.util import compile_guppy
 
 from typing import Generic, TYPE_CHECKING
@@ -82,6 +84,25 @@ def test_basic_enum(validate):
         variant3.method()
 
     validate(main)
+
+
+def test_control_classical_enum_with_unused_quantum_type_arg(validate):
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy.enum
+    class Classical(Generic[T]):
+        Value = {"value": int}
+
+    @guppy
+    def use(e: Classical[qubit]) -> None:
+        pass
+
+    @guppy
+    def main(c: qubit, e: Classical[qubit]) -> None:
+        with control(c):
+            use(e)
+
+    validate(main.compile_function())
 
 
 def test_backward_ref_enum(validate):
@@ -343,5 +364,54 @@ def test_enum_passed_through_functions(validate):
         _ = pt2.scale_factor(1.5)
 
         _, _, _ = chain(Shape.Circle(5.0))
+
+    validate(main.compile_function())
+
+
+def test_unitary_method_nested_generics_in_enum(validate):
+    """Test that unitary methods nested in enums can specify additional generic
+    parameters that are merged with the enum parameters
+    """
+
+    T = guppy.type_var("T")
+
+    @guppy.enum
+    class Gates[T]:
+        Enabled = {"x": T}
+
+        @guppy.unitary
+        class apply_h[n: nat]:
+            @guppy
+            def __call__(self: "Gates[T]", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def daggered(self: "Gates[T]", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def controlled[c: nat](
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def ctrl_daggered[c: nat](
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                apply_gate(qs[0])
+
+    @guppy
+    def apply_gate(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def main(s: Gates[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
+        with dagger:
+            s.apply_h(qs)
+        with control(ctrl):
+            s.apply_h(qs)
+        with dagger, control(ctrl):
+            s.apply_h(qs)
 
     validate(main.compile_function())

@@ -45,7 +45,6 @@ from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import (
     AbortExpr,
-    AbortKind,
     BarrierExpr,
     DesugaredArrayComp,
     DesugaredGenerator,
@@ -81,9 +80,8 @@ from guppylang_internals.std._internal.compiler.list import (
 )
 from guppylang_internals.std._internal.compiler.prelude import (
     barrier_op,
-    build_panic,
+    build_abort,
     make_error,
-    panic,
 )
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
@@ -426,9 +424,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             num_returns = len(type_to_row(func_ty.output))
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
-            # This is terrible - we'll need to do better if tensored functions
-            # become non-experimental:
-            effects = [Effect.ANY]
+            effects = [Effect.ANY]  # worst-case/conservative assumption
+            # (we'll need to do better if tensored functions become non-experimental)
             call = self.builder.add_op(
                 (hops.CallIndirect(func_ty.to_hugr(self.ctx)), effects),
                 func,
@@ -568,12 +565,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         in_tys = [get_type(e).to_hugr(self.ctx) for e in node.values]
         out_tys = [ty.to_hugr(self.ctx) for ty in type_to_row(get_type(node))]
         args = [self.visit(e) for e in node.values]
-        match node.kind:
-            case AbortKind.Panic:
-                h_node = build_panic(self.builder, in_tys, out_tys, err, *args)
-            case AbortKind.ExitShot:
-                op = panic(in_tys, out_tys, AbortKind.ExitShot)
-                h_node = self.builder.add_op(op, err, *args)
+        h_node = build_abort(self.builder, in_tys, out_tys, err, node.kind, *args)
         return self._pack_returns(list(h_node.outputs()), get_type(node))
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> Wire:
@@ -601,7 +593,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         op = (
             hops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args),
-            [Effect.ANY],
+            [Effect.OUTPUT],
         )
 
         qubit_arr_in: Wire
