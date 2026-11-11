@@ -590,19 +590,9 @@ def test_qarray_exit(validate):
     validate(pkg)
     hugr = pkg.modules[0]
 
-    # Probably remove, but temporarily...
-    def has_directed_order_path(source, target):
-        return any(
-            node == target or has_directed_order_path(node, target)
-            for node in hugr.outgoing_order_links(source)
-        )
-
     [get1, get2] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
     [set1, set2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
     [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
-
-    assert has_directed_order_path(exit1, exit2)
-    assert not has_directed_order_path(exit2, exit1)
 
     [inp, out] = hugr.children(hugr[get1].parent)[:2]
     # get/set are in parallel because we don't care about order of panics
@@ -622,3 +612,37 @@ def test_qarray_exit(validate):
     [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
 
     check_order(hugr, [get1, exit1, set2, exit2])
+
+
+def test_qarray_put_take_exit(validate):
+    @guppy
+    def foo(arr: array[qubit, 3]) -> None:
+        q = arr.take(0)
+        exit("Success")
+        q = h(q)  # Dataflow parallel
+        arr.put(q, 0)
+        q = arr.take(0)
+        exit("Failure")  # Well we shouldn't have got here...
+        arr.put(q, 0)
+
+    pkg = foo.with_minimal_opt().compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1, get2] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    [put1, put2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    for n in [get2, put1]:
+        check_order(hugr, [get1, exit1, n, exit2, put2])
+
+    pkg = foo.compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    # put1, get2 borrow-squashed
+    [put2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    check_order(hugr, [get1, exit1, exit2, put2])
