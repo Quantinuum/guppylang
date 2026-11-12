@@ -14,6 +14,93 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
 
+## [1.2.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.0...guppylang-v1.2.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* Raise minimum `tket` version to 0.15.15 (#2526)([cf2336b](https://github.com/Quantinuum/guppylang/commit/cf2336b3a69ccfedac1a5065fe7e70b722307e4e))
+* Ignore docstrings in guppy.unitary classes (#2524)([425437c](https://github.com/Quantinuum/guppylang/commit/425437caeb8856da12e33c982f624ebbc536d066))
+* Reject whole-value uses of mixed quantum/classical structs and tuples under dagger (#2523)([02544e0](https://github.com/Quantinuum/guppylang/commit/02544e0496732e4b5ef404cb699aa8e5879dd046))
+* Fix linearity checking of struct and tuple fields in control blocks (#2510)([d4870c4](https://github.com/Quantinuum/guppylang/commit/d4870c4b6f371fc523f6690a6bc9b1e3a3b83ec8))
+* Detect qubits in struct and enum fields when checking control constraints (#2509)([74ea66a](https://github.com/Quantinuum/guppylang/commit/74ea66a9038eb3f4d6611b9a276f8f43b2fe5f35))
+
+
+### Code Refactoring
+
+* Decouple selene dependencies from guppylang compiler (#2498)([3476258](https://github.com/Quantinuum/guppylang/commit/347625870da1febf8c6893dbe83bd7d834f323f7))
+
+## [1.2.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.0-rc0...guppylang-v1.2.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* Record indirect calls when resolving modifiers (#2448)([b2d07cf](https://github.com/Quantinuum/guppylang/commit/b2d07cf83a299fa03f677bc3ba2163fe80545bbf))
+
+* Avoid retaining the entire call stack when storing frames for compilation stage (#2458)([7aa5f25](https://github.com/Quantinuum/guppylang/commit/7aa5f25a643605abaa1ca8f8e2470069a09375e0))
+
+## [1.2.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.3...guppylang-v1.2.0-rc0) (2026-10-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Cleanup array module for Python 3.12 (#2432)
+  * This is breaking in that top level declared type variables were removed. Usually users do not import these, and instead define their own. Use of actual structs and functions imported from this module is not impacted.
+
+
+### Bug Fixes
+
+* Bump tket dependency to 0.15.12 (#2440)([c430b05](https://github.com/Quantinuum/guppylang/commit/c430b058250cab6bbcf21158ee91d08463e48aea))
+* Effects in ext_module_decorator and for from_halfturns_unchecked (#2438)([4f85c47](https://github.com/Quantinuum/guppylang/commit/4f85c477083af1059826c24ff5fa352a749e442d))
+* Remove unsound effect defaults from hugr_op and custom_func and add many missing effects (#2269)([df85c2d](https://github.com/Quantinuum/guppylang/commit/df85c2d632a366a7eb39cf75e65c8eb23985133c))
+* Mypy inference for Guppy decorator factories (#2421)([6bf79fb](https://github.com/Quantinuum/guppylang/commit/6bf79fb84233bd4cb25e674dbc320fe0a59726d3))
+
+
+### Code Refactoring
+
+* Cleanup array module for Python 3.12 (#2432)([eb91b0b](https://github.com/Quantinuum/guppylang/commit/eb91b0b154b932676963da0b7c0d26a02bce6ee2))
+
+
+### Documentation
+
+* Use Oxford spelling consistently in public documentation (#2341)([b04bcd2](https://github.com/Quantinuum/guppylang/commit/b04bcd241003adb6b5ef79a6af68e48bcddcff0c))
+
+
+### Features
+
+* Split effects into ALLOC, FREE, OUTPUT, PANIC, RNG and impose weak and strong ordering (#2363)([609cb6f](https://github.com/Quantinuum/guppylang/commit/609cb6f2b3fefa30f3292b277f362365256a8b76))
+* Type-level arithmetic (#2418)([c7d5e11](https://github.com/Quantinuum/guppylang/commit/c7d5e11a3ef02ce4b7e9f293e989da52660e99e6))
+* Preserve barriers and static array outputs in comptime (#2263)([6727a99](https://github.com/Quantinuum/guppylang/commit/6727a99c7dc5ba8b07e638534340b0fef947a192))
+* Guppy standard math module using HUGR math extension (#2365)([6781ffd](https://github.com/Quantinuum/guppylang/commit/6781ffd0aa414ba2b1f483d247f5d485d112aa90))
+* Add `empty_array` helper to create an array with all elements borrowed (#2327)([d2ce2f7](https://github.com/Quantinuum/guppylang/commit/d2ce2f7038f74c47abaec2fde7bc1e62a26a0221))
+* Register additional members in libraries after their creation (#2366)([31b9018](https://github.com/Quantinuum/guppylang/commit/31b9018e28eb608ded15ccadc1f9ff1f2b8191f2))
+* Support decimal places in rounding (#2283)([6f7ea2f](https://github.com/Quantinuum/guppylang/commit/6f7ea2f47ad084c836e5905f096514e122de2daf))
+* Accept bytes into emulator builder (#2314)([24dc1a5](https://github.com/Quantinuum/guppylang/commit/24dc1a5747ac259a2e42925c75676b3da663fec5))
+
+## [1.1.5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.4...guppylang-v1.1.5) (2026-10-26)
+
+
+### Bug Fixes
+
+* Fixed a memory leak due to retained call stacks when storing frames in compilation stage (#2457)([fc979f3](https://github.com/Quantinuum/guppylang/commit/fc979f37bdf3fa174582f97ac99330ff17d42f71))
+
+## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* Record indirect calls when resolving modifiers (#2450)([9b53a42](https://github.com/Quantinuum/guppylang/commit/9b53a420fdaed6f2983dcc8189b3003e4a66f215))
+
+## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.2...guppylang-v1.1.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* Infer type variables in higher order generic modifier arguments (#2402)([4f3ec86](https://github.com/Quantinuum/guppylang/commit/4f3ec86a70404a3c517d75e110a1af8f247110e9))
+* Resolve instance methods from generic protocol bounds (#2401)([602f1bd](https://github.com/Quantinuum/guppylang/commit/602f1bd6f2555cf594f46891bba18526e3d46984))
+* Resolve enclosing-scope names in `@guppy.unitary` methods (#2389)([cbcd28c](https://github.com/Quantinuum/guppylang/commit/cbcd28c7972f3dc24f44061998371ba4b7b67834))
+
+
 ## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.1...guppylang-v1.1.2) (2026-09-29)
 
 ### Bug Fixes
@@ -874,7 +961,7 @@ main.compile()
 ### ⚠ BREAKING CHANGES
 
 * Bools in HUGRs generated by Guppy are represented using a `tket2.bool` instead of the HUGR sum type
-* deprecated `hresult` and `qsys_result` modules have been removed. Use `hugr.qysystem.result` directly.
+* deprecated `hresult` and `qsys_result` modules have been removed. Use `hugr.qsystem.result` directly.
 * Generated HUGRs now refer to entrypoints and are always modules in envelopes.
 
 ### Features
@@ -1163,7 +1250,7 @@ main.compile()
 ### Features
 
 * Allow py expressions in type arguments ([#515](https://github.com/quantinuum/guppylang/issues/515)) ([b4fae3f](https://github.com/quantinuum/guppylang/commit/b4fae3f7a29b384f8bbe0069dc6131ec115e17ee))
-* remove python python 3 upper bound (support python 3.13) ([#578](https://github.com/quantinuum/guppylang/issues/578)) ([73bb94a](https://github.com/quantinuum/guppylang/commit/73bb94a76731afff7edfce681b556122fef486c7)), closes [#558](https://github.com/quantinuum/guppylang/issues/558)
+* remove python 3 upper bound (support python 3.13) ([#578](https://github.com/quantinuum/guppylang/issues/578)) ([73bb94a](https://github.com/quantinuum/guppylang/commit/73bb94a76731afff7edfce681b556122fef486c7)), closes [#558](https://github.com/quantinuum/guppylang/issues/558)
 
 
 ### Bug Fixes

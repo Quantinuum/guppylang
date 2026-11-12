@@ -21,6 +21,7 @@ from guppylang_internals.tys.common import (
     Visitor,
 )
 from guppylang_internals.tys.const import (
+    ComptimeConstValue,
     Const,
     ConstValue,
     ExistentialConstVar,
@@ -592,10 +593,8 @@ class FunctionType(ParametrizedTypeBase):
         """Accepts a visitor on this type."""
         if not visitor.visit(self):
             for inp in self.inputs:
-                visitor.visit(inp)
-            visitor.visit(self.output)
-            for param in self.params:
-                visitor.visit(param)
+                inp.ty.visit(visitor)
+            self.output.visit(visitor)
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
@@ -867,7 +866,13 @@ class StructType(ParametrizedTypeBase):
         from guppylang_internals.definition.util import CheckedField
         from guppylang_internals.tys.subst import Instantiator
 
-        inst = Instantiator(self.args)
+        inst = Instantiator(
+            self.args,
+            # Don't throw RequiresMonomorphization errors at this point. If some struct
+            # fields have generic comptime expressions, it's ok to preserve them without
+            # evaluation here.
+            require_monomorphization=False,
+        )
         return [CheckedField(f.name, f.ty.transform(inst)) for f in self.defn.fields]
 
     @cached_property
@@ -1072,11 +1077,11 @@ def unify(s: Type, t: Type, subst: "Subst | None") -> "Subst | None":
             return _unify_args(s, t, subst)
         case TupleType() as s, TupleType() as t:
             return _unify_args(s, t, subst)
-        case OpaqueType() as s, OpaqueType() as t if s.defn == t.defn:
+        case OpaqueType() as s, OpaqueType() as t if s.defn.id == t.defn.id:
             return _unify_args(s, t, subst)
-        case StructType() as s, StructType() as t if s.defn == t.defn:
+        case StructType() as s, StructType() as t if s.defn.id == t.defn.id:
             return _unify_args(s, t, subst)
-        case EnumType() as s, EnumType() as t if s.defn == t.defn:
+        case EnumType() as s, EnumType() as t if s.defn.id == t.defn.id:
             return _unify_args(s, t, subst)
         case _:
             return None
@@ -1086,6 +1091,11 @@ def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
     if subst is None:
         return None
 
+    if isinstance(s, ComptimeConstValue):
+        s = s.try_resolve(require_monomorphization=True)
+    if isinstance(t, ComptimeConstValue):
+        t = t.try_resolve(require_monomorphization=True)
+
     match s, t:
         case ExistentialConstVar() as s_var, t:
             return _unify_const_var(s_var, t, subst)
@@ -1093,6 +1103,10 @@ def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
             return _unify_const_var(t_var, s, subst)
         case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
             return subst
+        case ConstValue(), ComptimeConstValue():
+            return None
+        case ComptimeConstValue(), ConstValue():
+            return None
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
             return subst
         case _:

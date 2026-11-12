@@ -51,7 +51,7 @@ def test_custom_extension(validate):
     )
     extension.add_op_def(op_def)
 
-    @hugr_op(custom_ext_op("CustomOp", extension))
+    @hugr_op(custom_ext_op("CustomOp", extension), effects=())
     @no_type_check
     def custom_op(b: bool) -> bool:
         """Opaque boolean map."""

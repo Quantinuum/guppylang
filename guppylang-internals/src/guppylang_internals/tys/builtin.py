@@ -287,7 +287,7 @@ class ModifiableFunctionProtocolInst(ProtocolInst):
     `Daggerable` protocols.
     """
 
-    sig: FunctionType = field(hash=False)
+    sig: FunctionType = field(compare=False, hash=False)
 
     def __init__(self, sig: FunctionType):
         assert not sig.parametrized

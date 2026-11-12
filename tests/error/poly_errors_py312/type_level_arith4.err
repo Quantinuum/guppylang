@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:14:12)
+   | 
+12 | @guppy
+13 | def main() -> None:
+14 |     tail(0, array())
+   |             ^^^^^^^ Expected expression of type `array[?T, 1]`, got `array[?T,
+   |                     0]`
+
+Guppy compilation failed due to 1 previous error

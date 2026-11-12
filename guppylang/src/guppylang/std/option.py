@@ -24,17 +24,21 @@ L = guppy.type_var("T", copyable=False, droppable=False)
 class Option[L]:
     """Represents an optional value."""
 
-    @custom_function(OptionTestCompiler(0), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        OptionTestCompiler(0), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     @no_type_check
     def is_nothing(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `nothing` value."""
 
-    @custom_function(OptionTestCompiler(1), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        OptionTestCompiler(1), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     @no_type_check
     def is_some(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `some` value."""
 
-    @custom_function(OptionUnwrapCompiler(), effects=[Effect.ANY])
+    @custom_function(OptionUnwrapCompiler(), effects=[Effect.PANIC])
     @no_type_check
     def unwrap(self: "Option[L]" @ owned) -> L:
         """Returns the contained `some` value, consuming `self`.
@@ -42,7 +46,7 @@ class Option[L]:
         Panics if the option is a `nothing` value.
         """
 
-    @custom_function(OptionUnwrapNothingCompiler())
+    @custom_function(OptionUnwrapNothingCompiler(), effects=[Effect.PANIC])
     @no_type_check
     def unwrap_nothing(self: "Option[L]" @ owned) -> None:
         """Returns `None` if the option is a `nothing` value, consuming `self`.
@@ -64,17 +68,13 @@ class Option[L]:
         return self.swap(nothing())
 
 
-# EFFECTS this can + probably should be pure, but preserving behaviour for now
-@custom_function(
-    OptionConstructor(0), effects=[Effect.ANY], unitary_flags=UnitaryFlags.Dagger
-)
+@custom_function(OptionConstructor(0), effects=(), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
 def nothing() -> Option[L]:
     """Constructs a `nothing` optional value."""
 
 
-# EFFECTS this can + probably should be pure, but preserving behaviour for now
-@custom_function(OptionConstructor(1), effects=[Effect.ANY])
+@custom_function(OptionConstructor(1), effects=())
 @no_type_check
 def some(value: L @ owned) -> Option[L]:
     """Constructs a `some` optional value."""

@@ -4,12 +4,14 @@
 
 from guppylang_internals.decorator import custom_function
 from guppylang_internals.std._internal.debug import StateOutputChecker
+from guppylang_internals.tys import Effect
 
 
 @custom_function(
     checker=StateOutputChecker(),
     higher_order_value=False,
     has_var_args=True,
+    effects=[Effect.OUTPUT],
 )
 def state_output(tag, *args) -> None:
     """Report the quantum state of the specified qubits.
@@ -17,13 +19,70 @@ def state_output(tag, *args) -> None:
     This is a debugging function that works only when the program is executed
     on a supported simulator.
 
+    The state recorded by this function is a partial state of the specified
+    qubits, with unspecified qubits considered traced out. It should therefore
+    not in general be interpreted as the state vector of the full system.
+
+    The recorded partial state can be accessed through
+    :py:meth:`EmulatorResult.partial_states` or
+    :py:meth:`EmulatorResult.partial_state_dicts`, which return
+    :py:class:`PartialVector` objects. Use
+    :py:meth:`PartialVector.state_distribution` to obtain the distribution
+    of states (a representation of the reduced density matrix) after tracing out
+    the unspecified qubits.
+
+    For example, we can prepare a Bell state on two qubits and record the state
+    of a single qubit as follows:
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.std.debug import state_output
+        from guppylang.std.platform import barrier
+        from guppylang.std.quantum import cx, discard, h, qubit
+
+        @guppy
+        def inspect_bell() -> None:
+            q0 = qubit()
+            q1 = qubit()
+
+            h(q0)
+            cx(q0, q1)
+
+            barrier(q0, q1)
+            state_output("q0", q0)
+            barrier(q0, q1)
+
+            discard(q0)
+            discard(q1)
+
+        result = inspect_bell.emulator(2).with_shots(1).run()
+
+        shot = result.partial_state_dicts()[0]
+
+        partial = shot["q0"]
+
+    Finally, to convert the :py:class:`PartialVector` to a reduced density
+    matrix:
+
+    .. code-block:: python
+
+        import numpy as np
+
+        rho = sum(
+            item.probability * np.outer(item.state, item.state.conj())
+            for item in partial.state_distribution()
+        )
+
     Guppy does not in general respect the order of function calls in the source code, it
-    is constrained by the dataflow of the program. If two function calls act on
-    disjoint qubits they can slide past each other. This can interact badly with
-    entanglement since the guppy compiler does not know which qubits are entangled
-    together. In practice a gate on a qubit may be executed before a state_output on
-    another (potentially entangled) qubit, which can lead to unexpected results. To
-    avoid this, use the :py:func:`barrier` command to ensure that all operations on a
+    is constrained by the dataflow of the program. Whilst two `state_output`s are
+    guaranteed to execute in source-code order, function calls such as "pure quantum"
+    gates that act on disjoint qubits can slide past each other. This can interact badly
+    with entanglement since the guppy compiler does not know which qubits are entangled
+    together. That is, a gate on a qubit may execute before (or after) a `state_output`
+    on another (potentially entangled) qubit, even when the gate occurs after (resp.
+    before) the `state_output` in the source code. which can lead to unexpected results.
+    To avoid this, use the :py:func:`barrier` command to ensure that all operations on a
     set of qubits are completed before the state is output.
 
     Args:

@@ -1,0 +1,8 @@
+Error: Expected a linear element type (at $FILE:12:13)
+   | 
+10 | @guppy
+11 | def main() -> None:
+12 |     values = empty_array[Item, 1]()
+   |              ^^^^^^^^^^^ Expected a linear element type, got type `Item`
+
+Guppy compilation failed due to 1 previous error

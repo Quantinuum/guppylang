@@ -118,6 +118,32 @@ def test_comptime_tag_outside2(validate):
     validate(main.compile_function())
 
 
+def test_comptime_static_array_preserved_after_output(validate):
+    @guppy.comptime
+    def main() -> int:
+        xs = array(1, 2)
+        output("xs", xs)
+
+        assert xs == [1, 2]
+        return xs[0] + xs[1]
+
+    validate(main.compile_function())
+
+
+def test_comptime_dynamic_array_preserved_after_output(validate):
+    @guppy
+    def add_one(x: int) -> int:
+        return x + 1
+
+    @guppy.comptime
+    def main(x: int) -> int:
+        xs = array(add_one(x), 2)
+        output("xs", xs)
+        return xs[0] + xs[1]
+
+    validate(main.compile_function())
+
+
 def test_deprecated_result_alias_still_compiles(validate):
     @compile_guppy
     def main(x: int) -> None:

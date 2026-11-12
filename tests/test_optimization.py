@@ -13,8 +13,11 @@ from guppylang import (
     guppy,
 )
 from guppylang.emulator.exceptions import EmulatorBuildError
+from guppylang.library import GuppyLibrary, link_name
 from guppylang.optimizer import _RemoveRedundanciesPass
+from guppylang.std.quantum import h, qubit
 from hugr.metadata import HugrDebugInfo
+from hugr.ops import FuncDefn
 from hugr.passes.composable import ComposablePass, PassResult
 
 if TYPE_CHECKING:
@@ -209,3 +212,85 @@ def test_debug_compile_allows_optimization() -> None:
     )
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
+
+
+@pytest.mark.parametrize("level", [*OptimizationLevel, None])
+def test_library_optimization_levels(level: OptimizationLevel | None) -> None:
+    """Optimize all exported functions, retaining their names and visibility."""
+
+    @guppy
+    @link_name("first")
+    def first(q: qubit) -> None:
+        h(q)
+        h(q)
+
+    @guppy
+    @link_name("second")
+    def second(q: qubit) -> None:
+        h(q)
+        h(q)
+
+    library = GuppyLibrary.from_members(first, second)
+    if level is None:
+        package = library.compile()
+    elif level is OptimizationLevel.Minimal:
+        package = library.with_minimal_opt().compile()
+    else:
+        package = library.with_opt_level(level).compile()
+
+    hugr = package.modules[0]
+    exports = {
+        (node.op.f_name, node.op.visibility)
+        for node in hugr.values()
+        if isinstance(node.op, FuncDefn)
+    }
+    assert exports == {("first", "Public"), ("second", "Public")}
+    op_names = [node.op.name() for node in hugr.values()]
+    if level is OptimizationLevel.Minimal:
+        assert "DataflowBlock" in op_names
+    else:
+        assert "DataflowBlock" not in op_names
+    h_count = sum(name == "tket.quantum.H" for name in op_names)
+    assert h_count == (
+        4 if level in (OptimizationLevel.Minimal, OptimizationLevel.Classical) else 0
+    )
+
+
+def test_library_custom_passes() -> None:
+    """Custom passes run in order and level changes replace existing passes."""
+
+    @guppy
+    def func(x: int) -> int:
+        return x + 1
+
+    calls: list[str] = []
+
+    @dataclass
+    class RecordingPass(ComposablePass):
+        label: str
+
+        def run(self, hugr: Hugr[Any], *, inplace: bool = True) -> PassResult:
+            calls.append(self.label)
+            return PassResult.for_pass(
+                self, hugr, result=None, inplace=inplace, modified=False
+            )
+
+        def with_scope(self, scope: PassScope) -> ComposablePass:
+            return self
+
+    library = GuppyLibrary.from_members(func)
+    configured = (
+        library.with_minimal_opt()
+        .with_optimization(RecordingPass(label="first"))
+        .with_optimization(RecordingPass(label="second"))
+    )
+    configured.compile()
+    assert calls == ["first", "second"]
+
+    calls.clear()
+    configured.with_opt_level(OptimizationLevel.Classical).compile()
+    configured.with_minimal_opt().compile()
+    assert calls == []
+    # Reconfiguration leaves the original builder unchanged.
+    configured.compile()
+    assert calls == ["first", "second"]
