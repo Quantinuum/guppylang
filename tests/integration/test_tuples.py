@@ -1,7 +1,7 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, owned
+from guppylang.std.builtins import array, dagger, owned
 from guppylang.std.mem import mem_swap
-from guppylang.std.quantum import qubit, discard, h, x
+from guppylang.std.quantum import angle, qubit, discard, h, rx, x
 
 
 def test_indexing(run_int_fn):
@@ -126,3 +126,16 @@ def test_non_terminating(validate):
             x(t[0])
 
     validate(foo.compile_function())
+
+
+def test_dagger_unmixed_tuples(validate):
+    @guppy(daggerable=True)
+    def use(qs: tuple[qubit, qubit], ps: tuple[angle, angle]) -> None:
+        rx(qs[0], ps[0])
+
+    @guppy
+    def main(qs: tuple[qubit, qubit], ps: tuple[angle, angle]) -> None:
+        with dagger:
+            use(qs, ps)
+
+    validate(main.compile_function())
