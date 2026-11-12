@@ -415,9 +415,21 @@ def test_relevant(validate):
     def foo(x: T) -> T: ...
 
     @guppy
-    def main(r: R) -> R:
+    def apply[S](x: S, f: Function[[S], S]) -> S:
+        return f(x)
+
+    @guppy
+    def identity(x: R) -> R:
+        return x
+
+    @guppy
+    def main(r: R) -> tuple[R, R]:
         r_copy = r
-        return foo(r_copy)
+        value = foo(r_copy)
+        # Adapt the copyable, non-droppable callback while retaining the borrowed
+        # value: both the regular result and the borrowed value must be consumed.
+        result = apply(value, identity)
+        return result, value
 
     validate(main.compile_function())
 
