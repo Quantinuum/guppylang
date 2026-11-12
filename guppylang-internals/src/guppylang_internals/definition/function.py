@@ -459,7 +459,8 @@ def compile_call(
 def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str | None]:
     source_lines, line_offset = inspect.getsourcelines(f)
     source, func_ast, line_offset = parse_source(source_lines, line_offset)
-    file = inspect.getsourcefile(f)
+    # Match the unwrapping already performed by inspect.getsourcelines.
+    file = inspect.getsourcefile(inspect.unwrap(f))
     if file is None:
         raise GuppyError(UnknownSourceError(None, f))
     sources.add_file(file)
