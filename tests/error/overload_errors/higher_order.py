@@ -19,4 +19,4 @@ def main() -> None:
     f: Function[[], None] = overloaded
 
 
-main.compile()
+main.check()

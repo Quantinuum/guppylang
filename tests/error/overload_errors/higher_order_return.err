@@ -1,0 +1,9 @@
+Error: Higher-order overloaded function (at $FILE:19:11)
+   | 
+17 | @guppy
+18 | def main() -> Function[[bool], None]:
+19 |     return overloaded
+   |            ^^^^^^^^^^ Overloaded function `overloaded` may not be used as a
+   |                       higher-order value
+
+Guppy compilation failed due to 1 previous error
