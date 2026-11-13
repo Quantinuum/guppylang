@@ -10,7 +10,7 @@ For example, the function :py:func:`guppylang.std.quantum.project_z` may lower
 to a destructive measurement followed by a fresh ion allocation
 and conditional `X` flip to achieve "projective measurement" semantics.
 At the end of this process, the qubit may no longer map to the same
- ion as the original qubit. Such a guarantee can be achieved by using
+ion as the original qubit. Such a guarantee can be achieved by using
 the functions in this module.
 """
 

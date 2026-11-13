@@ -14,6 +14,22 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
 
+## [1.2.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.0...guppylang-v1.2.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* Raise minimum `tket` version to 0.15.15 (#2526)([cf2336b](https://github.com/Quantinuum/guppylang/commit/cf2336b3a69ccfedac1a5065fe7e70b722307e4e))
+* Ignore docstrings in guppy.unitary classes (#2524)([425437c](https://github.com/Quantinuum/guppylang/commit/425437caeb8856da12e33c982f624ebbc536d066))
+* Reject whole-value uses of mixed quantum/classical structs and tuples under dagger (#2523)([02544e0](https://github.com/Quantinuum/guppylang/commit/02544e0496732e4b5ef404cb699aa8e5879dd046))
+* Fix linearity checking of struct and tuple fields in control blocks (#2510)([d4870c4](https://github.com/Quantinuum/guppylang/commit/d4870c4b6f371fc523f6690a6bc9b1e3a3b83ec8))
+* Detect qubits in struct and enum fields when checking control constraints (#2509)([74ea66a](https://github.com/Quantinuum/guppylang/commit/74ea66a9038eb3f4d6611b9a276f8f43b2fe5f35))
+
+
+### Code Refactoring
+
+* Decouple selene dependencies from guppylang compiler (#2498)([3476258](https://github.com/Quantinuum/guppylang/commit/347625870da1febf8c6893dbe83bd7d834f323f7))
+
 ## [1.2.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.0-rc0...guppylang-v1.2.0) (2026-10-26)
 
 
@@ -60,6 +76,13 @@ As of version `1.0.0`, the Guppy language is considered stable. An extended chan
 * Register additional members in libraries after their creation (#2366)([31b9018](https://github.com/Quantinuum/guppylang/commit/31b9018e28eb608ded15ccadc1f9ff1f2b8191f2))
 * Support decimal places in rounding (#2283)([6f7ea2f](https://github.com/Quantinuum/guppylang/commit/6f7ea2f47ad084c836e5905f096514e122de2daf))
 * Accept bytes into emulator builder (#2314)([24dc1a5](https://github.com/Quantinuum/guppylang/commit/24dc1a5747ac259a2e42925c75676b3da663fec5))
+
+## [1.1.5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.4...guppylang-v1.1.5) (2026-10-26)
+
+
+### Bug Fixes
+
+* Fixed a memory leak due to retained call stacks when storing frames in compilation stage (#2457)([fc979f3](https://github.com/Quantinuum/guppylang/commit/fc979f37bdf3fa174582f97ac99330ff17d42f71))
 
 ## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
 
