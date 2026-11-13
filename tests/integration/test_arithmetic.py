@@ -3,7 +3,7 @@ import pytest
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.angles import angle, pi
-from guppylang.std.builtins import nat
+from guppylang.std.builtins import divmod, nat
 from tests.util import compile_guppy
 
 
@@ -496,3 +496,119 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
     run_float_fn_approx(float_round_neg_digits_tie_down, 120.0)
     run_float_fn_approx(float_round_neg_digits_tie_up, 140.0)
     run_float_fn_approx(float_round_neg_large, 9_223_372_036_854_775_700.0)
+
+
+@pytest.mark.parametrize(
+    ("x", "y"),
+    [
+        (7, 3),
+        (7, -3),
+        (-7, 3),
+        (-7, -3),
+        (6, -3),
+        (-6, -3),
+        (0, -3),
+        (-9_223_372_036_854_775_808, -9_223_372_036_854_775_808),
+        (-9_223_372_036_854_775_808, 3),
+        (-9_223_372_036_854_775_808, -3),
+        (9_223_372_036_854_775_807, -9_223_372_036_854_775_808),
+        (-1, -9_223_372_036_854_775_808),
+        (1, -9_223_372_036_854_775_808),
+    ],
+)
+def test_signed_divisor(run_int_fn, x: int, y: int) -> None:
+    @guppy(daggerable=True)
+    def quotient(a: int, b: int) -> int:
+        return a // b
+
+    @guppy(daggerable=True)
+    def remainder(a: int, b: int) -> int:
+        return a % b
+
+    @guppy(daggerable=True)
+    def divmod_quotient(a: int, b: int) -> int:
+        q, _ = divmod(a, b)
+        return q
+
+    @guppy(daggerable=True)
+    def divmod_remainder(a: int, b: int) -> int:
+        _, r = divmod(a, b)
+        return r
+
+    run_int_fn(quotient, x // y, args=[x, y])
+    run_int_fn(remainder, x % y, args=[x, y])
+    run_int_fn(divmod_quotient, x // y, args=[x, y])
+    run_int_fn(divmod_remainder, x % y, args=[x, y])
+
+
+@pytest.mark.parametrize("operator", ["floordiv", "mod", "divmod"])
+def test_signed_division_panics(run_int_fn, operator: str) -> None:
+    @guppy(daggerable=True)
+    def quotient(x: int, y: int) -> int:
+        return x // y
+
+    @guppy(daggerable=True)
+    def remainder(x: int, y: int) -> int:
+        return x % y
+
+    @guppy(daggerable=True)
+    def pair(x: int, y: int) -> int:
+        q, _ = divmod(x, y)
+        return q
+
+    fn = {"floordiv": quotient, "mod": remainder, "divmod": pair}[operator]
+    if operator == "mod":
+        run_int_fn(fn, 0, args=[-9_223_372_036_854_775_808, -1])
+    else:
+        with pytest.raises(EmulatorError, match="Signed integer division overflow"):
+            run_int_fn(fn, 0, args=[-9_223_372_036_854_775_808, -1])
+    with pytest.raises(EmulatorError, match="Attempted division by 0"):
+        run_int_fn(fn, 0, args=[7, 0])
+
+
+def test_signed_division_panic_effects() -> None:
+    from guppylang_internals.analysis.callgraph import CallGraph
+    from guppylang_internals.analysis.effects import compute_effects
+    from guppylang_internals.engine import ENGINE
+    from guppylang_internals.tys import Effect
+
+    @guppy(daggerable=True)
+    def signed(x: int, y: int) -> int:
+        return x // y + x % y + divmod(x, y)[0]
+
+    @guppy(daggerable=True)
+    def remainder(x: int, y: int) -> int:
+        return x % y
+
+    @guppy(daggerable=True)
+    def unsigned(x: nat, y: nat) -> nat:
+        return x // y
+
+    signed.check()
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    assert effects[signed.id, ()] == frozenset([Effect.PANIC])
+    remainder.check()
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    assert effects[remainder.id, ()] == frozenset()
+    unsigned.check()
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    assert effects[unsigned.id, ()] == frozenset()
+
+
+def test_signed_division_in_dagger(validate, run_int_fn) -> None:
+    from guppylang.std.builtins import dagger
+    from guppylang.std.quantum import discard, qubit, rz
+
+    @guppy
+    def main(x: int, y: int) -> int:
+        q = qubit()
+        with dagger:
+            z = x // y
+            rz(q, angle(float(z)))
+        discard(q)
+        return 1
+
+    validate(main.compile_function())
+    run_int_fn(main, 1, num_qubits=1, args=[7, -3])
+    with pytest.raises(EmulatorError, match="Signed integer division overflow"):
+        run_int_fn(main, 0, num_qubits=1, args=[-9_223_372_036_854_775_808, -1])
