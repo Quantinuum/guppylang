@@ -2,6 +2,7 @@
 side-effects.
 """
 
+from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
 import itertools
@@ -20,7 +21,6 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_RANDOM_EXTENSION,
     RESULT_EXTENSION,
 )
-from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from guppylang.std.builtins import output, array
 from guppylang.std.qsystem.random import RNG
 from guppylang.std.quantum import discard, measure
@@ -153,8 +153,7 @@ def test_different_effects_parallel(validate):
     @guppy
     def test(arr: array[qubit, 2] @ owned) -> None:
         output("a", True)  # Output effect
-        q = arr.take(1)  # No effect
-        # (yet, see https://github.com/Quantinuum/guppylang/issues/2122)
+        q = arr.take(1)  # Panic effect
         arr.discard_all_taken()  # Panic effect
         # q = measure_and_reset(q)
         mq = maybe_qubit()  # Allocation only
@@ -168,6 +167,9 @@ def test_different_effects_parallel(validate):
     hugr = compiled.modules[0]
     [out_a] = find_ext_nodes(
         hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name()
+    )
+    [take] = find_ext_nodes(
+        hugr, BORROW_ARRAY_EXTENSION.get_op("borrow").qualified_name()
     )
     [discard_all_borrowed] = find_ext_nodes(
         hugr, BORROW_ARRAY_EXTENSION.get_op("discard_all_borrowed").qualified_name()
@@ -187,13 +189,13 @@ def test_different_effects_parallel(validate):
     assert set(hugr.outgoing_order_links(inp)) == {out_a, qalloc}
 
     # OUTPUT / PANIC effect
-    assert set(hugr.outgoing_order_links(out_a)) == {discard_all_borrowed, unwrap}
+    assert set(hugr.outgoing_order_links(out_a)) == {take, discard_all_borrowed, unwrap}
 
     # ALLOC / FREE effect
     assert set(hugr.outgoing_order_links(qalloc)) == {qfree1, qfree2}
 
     # Output node collects last nodes from all effects
-    final_nodes = {discard_all_borrowed, unwrap, qfree1, qfree2}
+    final_nodes = {take, discard_all_borrowed, unwrap, qfree1, qfree2}
     assert set(hugr.incoming_order_links(outp)) == final_nodes
     for n in final_nodes:
         assert list(hugr.outgoing_order_links(n)) == [outp]
@@ -572,3 +574,75 @@ def test_decl(validate):
     assert "bar" in get_called_func_name(hugr, call)
 
     check_order(hugr, [inp, call_cfg, out])
+
+
+def test_qarray_exit(validate):
+    from guppylang.std.quantum import h
+
+    @guppy
+    def foo(arr: array[qubit, 3]) -> None:
+        h(arr[0])
+        exit("Success")
+        h(arr[0])  # Should be borrow-squashed
+        exit("Failure")  # Well we shouldn't have got here...
+
+    pkg = foo.with_minimal_opt().compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1, get2] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    [set1, set2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    [inp, out] = hugr.children(hugr[get1].parent)[:2]
+    # get/set are in parallel because we don't care about order of panics
+    # (looking at order edges. Value edges will enforce serialization!)
+    for n in [get1, set1]:
+        check_order(hugr, [inp, n, exit1])
+    for n in [get2, set2]:
+        check_order(hugr, [exit1, n, exit2, out])
+
+    pkg = foo.compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    # set1, get2 borrow-squashed
+    [set2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    check_order(hugr, [get1, exit1, set2, exit2])
+
+
+def test_qarray_put_take_exit(validate):
+    @guppy
+    def foo(arr: array[qubit, 3]) -> None:
+        q = arr.take(0)
+        exit("Success")
+        q = h(q)  # Dataflow parallel
+        arr.put(q, 0)
+        q = arr.take(0)
+        exit("Failure")  # Well we shouldn't have got here...
+        arr.put(q, 0)
+
+    pkg = foo.with_minimal_opt().compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1, get2] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    [put1, put2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    for n in [get2, put1]:
+        check_order(hugr, [get1, exit1, n, exit2, put2])
+
+    pkg = foo.compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    # put1, get2 borrow-squashed
+    [put2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    check_order(hugr, [get1, exit1, exit2, put2])
