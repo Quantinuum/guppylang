@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from guppylang_internals.checker.errors.generic import (
@@ -175,7 +175,13 @@ def analyze_modifier_calls(
                     # generates the modified callee, so its body inherits the context.
                     # In this case, the resolved callee must match the raw callee.
                     assert resolved_callee == raw_callee
-                    next_state = ModifierCallState(resolved_callee, effective_context)
+                    # Repetition applies to the callee as a whole. Even when its
+                    # caller's block has one call, distributing that power to the
+                    # calls inside the callee would change operation ordering.
+                    inherited_context = replace(
+                        effective_context, power_customizable=False
+                    )
+                    next_state = ModifierCallState(resolved_callee, inherited_context)
                     contextual_callers[next_state].add(state)
                     if resolved_callee in raw_calls:
                         worklist.append(next_state)

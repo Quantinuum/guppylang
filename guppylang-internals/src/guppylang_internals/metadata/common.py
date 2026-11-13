@@ -50,6 +50,30 @@ class CtrlDaggeredImplementations(Metadata[list[str]]):
     KEY = "tket.ctrl_daggered"
 
 
+class PoweredImplementation(Metadata[str]):
+    """Link name of the custom power implementation."""
+
+    KEY = "tket.powered"
+
+
+class PowerDaggeredImplementation(Metadata[str]):
+    """Link name of the custom power-dagger implementation."""
+
+    KEY = "tket.power_daggered"
+
+
+class CtrlPoweredImplementations(Metadata[list[str]]):
+    """Custom controlled-power implementations, specialized by control count."""
+
+    KEY = "tket.ctrl_powered"
+
+
+class CtrlPowerDaggeredImplementations(Metadata[list[str]]):
+    """Custom controlled-power-dagger implementations by control count."""
+
+    KEY = "tket.ctrl_power_daggered"
+
+
 class NumControlQubits(Metadata[int]):
     """stub implementation for tket.metadata.NumControlQubits to ensure decoupling
     between guppy and tket. See:
@@ -101,6 +125,10 @@ class FunctionMetadata:
         ControlledImplementations.KEY,
         CtrlDaggeredImplementations.KEY,
         NumControlQubits.KEY,
+        PoweredImplementation.KEY,
+        PowerDaggeredImplementation.KEY,
+        CtrlPoweredImplementations.KEY,
+        CtrlPowerDaggeredImplementations.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -202,6 +230,10 @@ def add_custom_implementations(
     daggered: str | None = None,
     controlled: list[str] | None = None,
     ctrl_daggered: list[str] | None = None,
+    powered: str | None = None,
+    power_daggered: str | None = None,
+    ctrl_powered: list[str] | None = None,
+    ctrl_power_daggered: list[str] | None = None,
 ) -> None:
     """Adds the names of the functions implementing custom modifications, ensuring
     reserved keys aren't overwritten."""
@@ -221,6 +253,17 @@ def add_custom_implementations(
                 MetadataAlreadySetError(None, CtrlDaggeredImplementations.KEY)
             )
         node_metadata[CtrlDaggeredImplementations.KEY] = cast("JsonType", ctrl_daggered)
+
+    for key, value in (
+        (PoweredImplementation.KEY, powered),
+        (PowerDaggeredImplementation.KEY, power_daggered),
+        (CtrlPoweredImplementations.KEY, ctrl_powered),
+        (CtrlPowerDaggeredImplementations.KEY, ctrl_power_daggered),
+    ):
+        if value is not None:
+            if key in node_metadata:
+                raise GuppyError(MetadataAlreadySetError(None, key))
+            node_metadata[key] = cast("JsonType", value)
 
 
 def add_num_control_qubits(

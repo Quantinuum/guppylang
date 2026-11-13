@@ -43,6 +43,10 @@ if TYPE_CHECKING:
 CALL_DAGGERED_METHOD = "daggered"
 CALL_CONTROLLED_METHOD = "controlled"
 CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
+CALL_POWERED_METHOD = "powered"
+CALL_POWER_DAGGERED_METHOD = "power_daggered"
+CALL_CTRL_POWERED_METHOD = "ctrl_powered"
+CALL_CTRL_POWER_DAGGERED_METHOD = "ctrl_power_daggered"
 
 
 @dataclass(frozen=True)

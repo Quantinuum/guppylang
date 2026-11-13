@@ -29,7 +29,6 @@ from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
-    check_power_modifier_enabled,
 )
 from guppylang_internals.nodes import (
     ComptimeExpr,
@@ -57,6 +56,34 @@ tmp_vars: Iterator[str] = (f"%tmp{i}" for i in itertools.count())
 def is_tmp_var(x: str) -> bool:
     """Checks if a name corresponds to a temporary variable."""
     return x.startswith("%tmp")
+
+
+def _has_single_call(body: list[ast.stmt]) -> bool:
+    """Count body calls before CFG lowering, excluding modifier constructors.
+
+    Calls nested in arguments count too. Nested modifier bodies are included,
+    but their `control`/`power` constructors are context managers, not body calls.
+    Control flow cannot represent one unconditional execution of a call.
+    """
+    nodes = [node for stmt in body for node in ast.walk(stmt)]
+    modifier_constructors = {
+        item.context_expr
+        for node in nodes
+        if isinstance(node, ast.With)
+        for item in node.items
+    }
+    if any(
+        isinstance(node, (ast.If, ast.IfExp, ast.For, ast.While, ast.comprehension))
+        for node in nodes
+    ):
+        return False
+    return (
+        sum(
+            isinstance(node, ast.Call) and node not in modifier_constructors
+            for node in nodes
+        )
+        == 1
+    )
 
 
 class Jumps(NamedTuple):
@@ -392,6 +419,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         else:
             original_ast_body = None
 
+        has_single_call = _has_single_call(node.body)
         cfg = CFGBuilder().build(
             node.body,
             True,
@@ -406,6 +434,7 @@ class CFGBuilder(AstVisitor[BB | None]):
             node.items[0].context_expr,
             accumulated_flags,
             original_ast_body,
+            has_single_call,
             **dict(ast.iter_fields(node)),
         )
 
@@ -437,7 +466,6 @@ class CFGBuilder(AstVisitor[BB | None]):
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))
                 modifier = Control(e, e.args)
             case ast.Call(func=ast.Name(id="power")):
-                check_power_modifier_enabled(e.func)
                 if len(e.args) == 0:
                     span = Span(to_span(e.func).end, to_span(e).end)
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))
