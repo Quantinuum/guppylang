@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import builtins
 from types import GeneratorType
-from typing import TYPE_CHECKING, no_type_check
+from typing import TYPE_CHECKING, Self, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import CopyInoutCompiler
@@ -40,13 +40,27 @@ from hugr.std.collections.borrow_array import EXTENSION
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
-from guppylang.std.lang import Copy, Drop
+from guppylang.std.lang import Copy, Drop, comptime
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
+
+
+@guppy.protocol
+class _ArrayTruthiness:
+    @guppy.require
+    def __bool__(self: Self) -> bool: ...
+
+
+def _check_bit_width(size: int) -> None:
+    """Validate the static width before generating any conversion code."""
+    # The comptime evaluator wraps Python exceptions in a source-located GuppyError.
+    if not 0 <= size <= 64:
+        msg = "Boolean array bit width must be between 0 and 64"
+        raise ValueError(msg)
 
 
 @extend_type(
@@ -311,6 +325,303 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+    # Borrowed indexing allows early exit without consuming linear elements.
+    # An iterable abstraction must define ownership of unconsumed elements
+    # before it can provide equivalent short-circuit reductions.
+    @guppy
+    @no_type_check
+    def any[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return whether any element is truthy, or ``False`` for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        Scans in index order and stops at the first truthy
+        element. Takes O(n) time in the worst case and O(1) auxiliary space.
+        Panics if an accessed element is missing.
+
+        .. code-block:: python
+
+            any_true = array(False, True).any()  # True
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin any yet.
+            if self[i]:
+                return True
+        return False
+
+    @guppy
+    @no_type_check
+    def all[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return whether all elements are truthy, or ``True`` for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        Scans in index order and stops at the first falsey
+        element. Takes O(n) time in the worst case and O(1) auxiliary space.
+        Panics if an accessed element is missing.
+
+        .. code-block:: python
+
+            all_true = array(True, False).all()  # False
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if not self[i]:
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def count_true[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> int:
+        """Count truthy elements, returning zero for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        A single scan takes O(n) time and O(1) auxiliary space.
+        Panics if an element is missing.
+
+        .. code-block:: python
+
+            count = array(True, False, True).count_true()  # 2
+        """
+        count = 0
+        for i in range(n):
+            count += int(bool(self[i]))
+        return count
+
+    @guppy
+    @no_type_check
+    def parity[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return the XOR of all element truth values, or ``False`` for an empty array.
+
+        The result is true exactly when an odd number of elements are truthy.
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        A single scan takes O(n) time and O(1) auxiliary space.
+        Panics if an element is missing.
+
+        .. code-block:: python
+
+            from guppylang.std.quantum import measure_array, qubit, x
+
+            qs = array(qubit() for _ in range(3))
+            x(qs[0])
+            outcomes = array(m.read() for m in measure_array(qs))
+            odd_parity = outcomes.parity()  # True
+        """
+        parity = False
+        for i in range(n):
+            parity ^= bool(self[i])
+        return parity
+
+    # These operations borrow both inputs. A shared zip/map/fold abstraction
+    # must preserve borrowing and equal static lengths to implement this API.
+    @guppy
+    @no_type_check
+    def bitwise_and[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise AND of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+        """
+        return array(self[i] & other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_or[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise OR of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+        """
+        return array(self[i] | other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_xor[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise XOR of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+
+        .. code-block:: python
+
+            expected = array(True, False, True)
+            observed = array(True, True, False)
+            differences = observed.bitwise_xor(expected)  # [False, True, True]
+        """
+        return array(self[i] ^ other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_not[n: nat](self: array[bool, n]) -> array[bool, n]:
+        """Return a new boolean array with every element negated.
+
+        Borrows the input without modifying it. An empty input produces an
+        empty array. Takes O(n) time and O(1) auxiliary space, excluding the
+        O(n) output array.
+        """
+        return array(not self[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def dot[n: nat](self: array[bool, n], other: array[bool, n]) -> bool:
+        """Return the GF(2) scalar product of equal-length boolean arrays.
+
+        Computes the XOR of pairwise ANDs, or ``False`` for empty arrays.
+        Borrows both inputs without modifying them. A single scan takes
+        O(n) time and O(1) auxiliary space without an intermediate array.
+
+        .. code-block:: python
+
+            outcomes = array(True, False, True)
+            mask = array(True, False, False)
+            selected_parity = outcomes.dot(mask)  # True
+        """
+        parity = False
+        for i in range(n):
+            parity ^= self[i] & other[i]
+        return parity
+
+    @guppy
+    @no_type_check
+    def __and__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs & ys`` using `bitwise_and`."""
+        return self.bitwise_and(other)
+
+    @guppy
+    @no_type_check
+    def __or__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs | ys`` using `bitwise_or`."""
+        return self.bitwise_or(other)
+
+    @guppy
+    @no_type_check
+    def __xor__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs ^ ys`` using `bitwise_xor`."""
+        return self.bitwise_xor(other)
+
+    @guppy
+    @no_type_check
+    def __invert__[n: nat](self: array[bool, n]) -> array[bool, n]:
+        """Implement ``~xs`` using `bitwise_not`."""
+        return self.bitwise_not()
+
+    @guppy
+    @no_type_check
+    def __matmul__[n: nat](self: array[bool, n], other: array[bool, n]) -> bool:
+        """Implement ``xs @ ys`` using `dot`."""
+        return self.dot(other)
+
+    @guppy
+    @no_type_check
+    def to_nat[n: nat](self: array[bool, n]) -> nat:
+        """Convert a boolean array to an unsigned integer, most significant bit first.
+
+        Index 0 is the most significant bit. An empty array represents zero.
+        The static length must be between 0 and 64; other lengths are rejected
+        during compilation. Borrows the input without modifying it.
+
+        A left-to-right shift-and-OR scan takes O(n) time and O(1) auxiliary
+        space. Each shift is by one bit, including at width 64.
+
+        .. code-block:: python
+
+            bits = array(True, False, False)
+            value = bits.to_nat()  # nat(4)
+        """
+        return _array_to_nat(self, False)
+
+    @guppy
+    @no_type_check
+    def to_nat_le[n: nat](self: array[bool, n]) -> nat:
+        """Convert a boolean array to an unsigned integer, least significant bit first.
+
+        Index 0 is the least significant bit. An empty array represents zero.
+        The static length must be between 0 and 64; other lengths are rejected
+        during compilation. Borrows the input without modifying it.
+
+        A right-to-left shift-and-OR scan takes O(n) time and O(1) auxiliary
+        space. Each shift is by one bit, including at width 64.
+
+        .. code-block:: python
+
+            bits = array(True, False, False)
+            value = bits.to_nat_le()  # nat(1)
+        """
+        return _array_to_nat(self, True)
+
+
+@guppy
+@no_type_check
+def _array_to_nat[n: nat](bits: array[bool, n], little_endian: bool @ comptime) -> nat:
+    comptime(_check_bit_width(n))  # type: ignore[name-defined]
+    size = len(bits)
+    value = nat(0)
+    for i in range(size):
+        index = size - i - 1 if little_endian else i
+        value = (value << nat(1)) | nat(bits[index])
+    return value
+
+
+@guppy
+@no_type_check
+def _array_from_nat(
+    value: nat, size: nat @ comptime, little_endian: bool @ comptime
+) -> Option[array[bool, size]]:
+    comptime(_check_bit_width(size))
+    maximum: nat = comptime((1 << size) - 1)
+    if value > maximum:
+        return nothing()
+    # Visit bit positions in output order without reversing or copying an array.
+    first, step = (0, 1) if little_endian else (int(size) - 1, -1)
+    return some(
+        array(bool((value >> nat(first + step * i)) & nat(1)) for i in range(size))
+    )
+
+
+@guppy
+@no_type_check
+def array_from_nat(value: nat, size: nat @ comptime) -> Option[array[bool, size]]:
+    """Convert an unsigned integer to a boolean array, most significant bit first.
+
+    Index 0 is the most significant bit. The compile-time size must be between
+    0 and 64; other sizes are rejected during compilation. Returns ``some(array)``
+    if the value fits in the requested size, or ``nothing`` otherwise. Size zero
+    accepts only zero.
+
+    Extracting each bit takes O(size) time and O(1) auxiliary space, excluding
+    the O(size) output array. Runtime shifts are at most 63 bits.
+
+    .. code-block:: python
+
+        bits = array_from_nat(nat(4), 3).unwrap()  # [True, False, False]
+    """
+    return _array_from_nat(value, size, False)
+
+
+@guppy
+@no_type_check
+def array_from_nat_le(value: nat, size: nat @ comptime) -> Option[array[bool, size]]:
+    """Convert an unsigned integer to a boolean array, least significant bit first.
+
+    Index 0 is the least significant bit. The compile-time size must be between
+    0 and 64; other sizes are rejected during compilation. Returns ``some(array)``
+    if the value fits in the requested size, or ``nothing`` otherwise. Size zero
+    accepts only zero.
+
+    Extracting each bit takes O(size) time and O(1) auxiliary space, excluding
+    the O(size) output array. Runtime shifts are at most 63 bits.
+
+    .. code-block:: python
+
+        bits = array_from_nat_le(nat(4), 3).unwrap()  # [False, False, True]
+    """
+    return _array_from_nat(value, size, True)
 
 
 @hugr_op(
