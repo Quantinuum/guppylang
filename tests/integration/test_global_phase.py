@@ -22,6 +22,7 @@ def test_controlled_global_phase() -> None:
         state_output("s", q)
         discard(q)
 
+    # TODO: Compare with pytket.
     res = main.emulator(1).statevector_sim().with_shots(1).with_seed(12).run()
     state = res.partial_state_dicts()[0]["s"].as_single_state()
     expected = np.array([1, np.exp(1j * np.pi / 3)]) / np.sqrt(2)
@@ -46,6 +47,7 @@ def test_global_phase_quantum_output(validate) -> None:
     validate(foo.compile_function())
 
 
+@pytest.mark.skip("Skipping due to TKET state order bug")
 def test_global_phase_in_dagger_block(validate, use_experimental_features) -> None:
     @guppy
     def foo() -> None:
