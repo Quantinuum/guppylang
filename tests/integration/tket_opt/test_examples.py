@@ -1,7 +1,7 @@
-"""Tests optimizing Hugrs generated offline by Guppy programs."""
+"""Tests optimizing Hugrs, especially with regards to complex
+control flow or classical "flattening" examples, mirroring
+the "guppy_optimization" tests in TKET2."""
 
-# ALAN TODO Should be integrated into either tests/test_optimization.py
-# or tests/integration/tket_opt/
 from collections.abc import Callable
 import pytest
 
