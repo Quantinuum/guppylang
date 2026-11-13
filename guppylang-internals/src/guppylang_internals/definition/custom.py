@@ -412,6 +412,7 @@ class CustomCallChecker(ABC):
         self.ctx = ctx
         self.node = node
         self.func = func
+        self._depth += 1
         try:
             yield self
         finally:
