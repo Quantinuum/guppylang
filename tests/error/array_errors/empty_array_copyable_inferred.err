@@ -1,0 +1,12 @@
+Error: Copyable elements (at $FILE:7:24)
+  | 
+5 | @guppy
+6 | def main() -> array[int, 2]:
+7 |     xs: array[int, 2] = empty_array()
+  |                         ^^^^^^^^^^^^^ `empty_array` cannot be used with copyable element type
+  |                                       `int`
+
+Note: Only arrays with non-copyable elements can be created empty. Consider
+constructing the array directly, e.g. via an array comprehension
+
+Guppy compilation failed due to 1 previous error
