@@ -52,6 +52,7 @@ from guppylang_internals.tracing.unpacking import (
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.qubit import is_quantum_signature
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -148,7 +149,14 @@ def trace_function(
     ctx: ToHugrContext = None
     mono_id = (func_def.id, inst)
     ENGINE.register_call_graph_node(mono_id)
-    state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)
+    state = TracingState(
+        ctx,
+        recorder,
+        node,
+        func_def,
+        current_caller=mono_id,
+        quantum_function=is_quantum_signature([inp.ty for inp in ty.inputs], ty.output),
+    )
 
     with set_tracing_state(state):
         generic_values = {
@@ -298,6 +306,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             locals,
             {},
             current_caller=state.current_caller,
+            quantum_scope=state.quantum_function,
         )
         call_node, ret_ty = func.synthesize_call(arg_exprs, ast_node, ctx)
 

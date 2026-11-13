@@ -36,6 +36,7 @@ from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
+from guppylang_internals.tys.qubit import is_quantum_signature
 from guppylang_internals.tys.ty import (
     FunctionDefType,
     InputFlags,
@@ -116,6 +117,11 @@ def check_cfg(
     if modified_block_name_base is None:
         modified_block_name_base = func_name
 
+    # Modifier blocks and functions with quantum inputs or outputs are quantum scopes
+    quantum_scope = first_modifier_node is not None or is_quantum_signature(
+        [v.ty for v in inputs], return_ty
+    )
+
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
@@ -134,6 +140,7 @@ def check_cfg(
         modified_block_counter,
         current_caller=current_caller,
         modifier_ctx=modifier_ctx,
+        quantum_scope=quantum_scope,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -170,6 +177,7 @@ def check_cfg(
                 modified_block_counter,
                 current_caller=current_caller,
                 modifier_ctx=modifier_ctx,
+                quantum_scope=quantum_scope,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -315,6 +323,7 @@ def check_bb(
     modified_block_counter: Iterator[int],
     current_caller: MonoDefId,
     modifier_ctx: ModifierContext,
+    quantum_scope: bool,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -347,6 +356,7 @@ def check_bb(
         modified_block_counter=modified_block_counter,
         current_caller=current_caller,
         modifier_ctx=modifier_ctx,
+        quantum_scope=quantum_scope,
     )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
