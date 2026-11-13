@@ -34,15 +34,15 @@ def test_function_values():
 
     root.check()
 
-    assert ENGINE.load_graph[root.id, ()] == {
+    assert ENGINE.call_info.load_graph[root.id, ()] == {
         (assigned.id, ()),
         (passed.id, ()),
         (returned.id, ()),
     }
-    assert ENGINE.load_graph[consume.id, ()] == set()
-    assert ENGINE.load_graph[assigned.id, ()] == set()
-    assert (consume.id, ()) in ENGINE.call_graph[root.id, ()]
-    assert (passed.id, ()) not in ENGINE.call_graph[root.id, ()]
+    assert ENGINE.call_info.load_graph[consume.id, ()] == set()
+    assert ENGINE.call_info.load_graph[assigned.id, ()] == set()
+    assert (consume.id, ()) in ENGINE.call_info.call_graph[root.id, ()]
+    assert (passed.id, ()) not in ENGINE.call_info.call_graph[root.id, ()]
 
 
 @pytest.mark.parametrize("comptime_factory", [False, True])
@@ -59,8 +59,8 @@ def test_returned_function_load(comptime_factory):
 
     factory.check()
 
-    assert ENGINE.load_graph[factory.id, ()] == {(loaded.id, ())}
-    assert ENGINE.call_graph[factory.id, ()] == []
+    assert ENGINE.call_info.load_graph[factory.id, ()] == {(loaded.id, ())}
+    assert ENGINE.call_info.call_graph[factory.id, ()] == []
 
 
 def test_comptime_function_value():
@@ -74,9 +74,9 @@ def test_comptime_function_value():
 
     root.check()
 
-    assert ENGINE.load_graph[root.id, ()] == {(loaded.id, ())}
-    assert ENGINE.call_graph[root.id, ()] == []
-    assert ENGINE.load_graph[loaded.id, ()] == set()
+    assert ENGINE.call_info.load_graph[root.id, ()] == {(loaded.id, ())}
+    assert ENGINE.call_info.call_graph[root.id, ()] == []
+    assert ENGINE.call_info.load_graph[loaded.id, ()] == set()
 
 
 def test_load_nested():
@@ -90,9 +90,11 @@ def test_load_nested():
 
     factory.check()
 
-    [nested] = [mono for mono in ENGINE.call_graph if mono != (factory.id, ())]
-    assert ENGINE.call_graph[factory.id, ()] == []
-    assert ENGINE.load_graph[factory.id, ()] == {nested}
+    [nested] = [
+        mono for mono in ENGINE.call_info.call_graph if mono != (factory.id, ())
+    ]
+    assert ENGINE.call_info.call_graph[factory.id, ()] == []
+    assert ENGINE.call_info.load_graph[factory.id, ()] == {nested}
 
 
 @pytest.mark.xfail(strict=True)
@@ -111,9 +113,11 @@ def test_load_nested_failing_with_experimental_on(use_experimental_features):
 
     factory.check()
 
-    [nested] = [mono for mono in ENGINE.call_graph if mono != (factory.id, ())]
-    assert ENGINE.call_graph[factory.id, ()] == []
-    assert ENGINE.load_graph[factory.id, ()] == {nested}
+    [nested] = [
+        mono for mono in ENGINE.call_info.call_graph if mono != (factory.id, ())
+    ]
+    assert ENGINE.call_info.call_graph[factory.id, ()] == []
+    assert ENGINE.call_info.load_graph[factory.id, ()] == {nested}
 
 
 def test_direct_calls_do_not_load():
@@ -128,8 +132,8 @@ def test_direct_calls_do_not_load():
 
     root.check()
 
-    assert ENGINE.load_graph[root.id, ()] == set()
-    assert (leaf.id, ()) in ENGINE.call_graph[root.id, ()]
+    assert ENGINE.call_info.load_graph[root.id, ()] == set()
+    assert (leaf.id, ()) in ENGINE.call_info.call_graph[root.id, ()]
 
 
 def test_arguments_of_nested_calls_are_values():
@@ -148,8 +152,8 @@ def test_arguments_of_nested_calls_are_values():
 
     root.check()
 
-    assert ENGINE.load_graph[root.id, ()] == {(leaf.id, ())}
-    assert ENGINE.load_graph[factory.id, ()] == set()
+    assert ENGINE.call_info.load_graph[root.id, ()] == {(leaf.id, ())}
+    assert ENGINE.call_info.load_graph[factory.id, ()] == set()
 
 
 @pytest.mark.parametrize("type_kind", ["struct", "enum"])
@@ -195,7 +199,7 @@ def test_bound_methods(type_kind, use):
 
     method = ENGINE.get_type_member(ENGINE.get_parsed(Example.id), "method")
     assert method is not None
-    assert ENGINE.load_graph[root.id, ()] == (
+    assert ENGINE.call_info.load_graph[root.id, ()] == (
         set() if use == "called" else {(method, ())}
     )
 
@@ -228,7 +232,7 @@ def test_static_methods(type_kind):
 
     loaded = ENGINE.get_type_member(ENGINE.get_parsed(Example.id), "loaded")
     assert loaded is not None
-    assert ENGINE.load_graph[root.id, ()] == {(loaded, ())}
+    assert ENGINE.call_info.load_graph[root.id, ()] == {(loaded, ())}
 
 
 def test_bare_generic_function():
@@ -244,7 +248,7 @@ def test_bare_generic_function():
     root.check()
 
     generic = (identity.id, ())
-    assert ENGINE.load_graph[root.id, ()] == {generic}
+    assert ENGINE.call_info.load_graph[root.id, ()] == {generic}
 
 
 def test_explicit_generic_function_specializations():
@@ -261,7 +265,7 @@ def test_explicit_generic_function_specializations():
     root.check()
 
     generic = (identity.id, ())
-    assert ENGINE.load_graph[root.id, ()] == {
+    assert ENGINE.call_info.load_graph[root.id, ()] == {
         generic,
         (identity.id, (TypeArg(int_type()),)),
         (identity.id, (TypeArg(float_type()),)),
@@ -281,7 +285,7 @@ def test_inferred_generic_function_specializations():
 
     root.check()
     generic = (identity.id, ())
-    assert ENGINE.load_graph[root.id, ()] == {
+    assert ENGINE.call_info.load_graph[root.id, ()] == {
         generic,
         (identity.id, (TypeArg(int_type()),)),
         (identity.id, (TypeArg(float_type()),)),
@@ -301,7 +305,7 @@ def test_direct_generic_calls_do_not_load():
 
     root.check()
 
-    assert ENGINE.load_graph[root.id, ()] == set()
+    assert ENGINE.call_info.load_graph[root.id, ()] == set()
 
 
 def test_generic_function_owner_specialization():
@@ -321,10 +325,13 @@ def test_generic_function_owner_specialization():
     root.check()
 
     generic = (identity.id, ())
-    assert ENGINE.load_graph[root.id, ()] == set()
+    assert ENGINE.call_info.load_graph[root.id, ()] == set()
     for ty in (int_type(), float_type()):
         inst = (TypeArg(ty),)
-        assert ENGINE.load_graph[loader.id, inst] == {generic, (identity.id, inst)}
+        assert ENGINE.call_info.load_graph[loader.id, inst] == {
+            generic,
+            (identity.id, inst),
+        }
 
 
 @pytest.mark.parametrize("type_kind", ["struct", "enum"])
@@ -350,13 +357,13 @@ def test_generic_bound_method(type_kind):
         return x.method[int](1)
 
     called.check()
-    assert ENGINE.load_graph[called.id, ()] == set()
+    assert ENGINE.call_info.load_graph[called.id, ()] == set()
 
     root.check()
 
     method = ENGINE.get_type_member(ENGINE.get_parsed(Example.id), "method")
     assert method is not None
-    assert ENGINE.load_graph[root.id, ()] == {
+    assert ENGINE.call_info.load_graph[root.id, ()] == {
         (method, ()),
         (method, (TypeArg(int_type()),)),
         (method, (TypeArg(float_type()),)),
@@ -381,10 +388,12 @@ def test_loads_in_containers_and_generic_owners():
 
     root.check()
 
-    assert ENGINE.load_graph[root.id, ()] == set()
-    owners = [mono for mono in ENGINE.load_graph if mono[0] == generic.id]
+    assert ENGINE.call_info.load_graph[root.id, ()] == set()
+    owners = [mono for mono in ENGINE.call_info.load_graph if mono[0] == generic.id]
     assert len(owners) >= 2
-    assert all(ENGINE.load_graph[owner] == {(leaf.id, ())} for owner in owners)
+    assert all(
+        ENGINE.call_info.load_graph[owner] == {(leaf.id, ())} for owner in owners
+    )
 
 
 def test_constructor_references():
@@ -406,14 +415,14 @@ def test_constructor_references():
         return Struct, Enum.Variant
 
     calls.check()
-    assert ENGINE.load_graph[calls.id, ()] == set()
+    assert ENGINE.call_info.load_graph[calls.id, ()] == set()
 
     loads.check()
     struct_constructor = ENGINE.get_type_member(ENGINE.get_parsed(Struct.id), "__new__")
     enum_constructor = ENGINE.get_type_member(ENGINE.get_parsed(Enum.id), "Variant")
     assert struct_constructor is not None
     assert enum_constructor is not None
-    assert ENGINE.load_graph[loads.id, ()] == {
+    assert ENGINE.call_info.load_graph[loads.id, ()] == {
         (struct_constructor, ()),
         (enum_constructor, ()),
     }

@@ -1,7 +1,9 @@
 """Integration tests for modifier-labelled call-graph analysis."""
 
 import pytest
+from hugr import ops
 from guppylang import guppy
+from guppylang.library import GuppyLibrary
 from guppylang.std.array import array
 from guppylang.std.builtins import (
     Controllable,
@@ -12,7 +14,7 @@ from guppylang.std.builtins import (
     nat,
     panic,
 )
-from guppylang.std.quantum import discard, measure, qubit, x
+from guppylang.std.quantum import discard, measure, qubit, s, x
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.modifier import (
@@ -67,8 +69,11 @@ def test_custom_modifier_removes_effects():
             custom_gate(q)
 
     custom_main.check()
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    assert ENGINE.analyzed_graph is not None
+    effects = compute_effects(
+        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.call_info.func_effects
+    )
+    [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     assert effects[custom_use.unmodified_callee] == frozenset({Effect.PANIC})
     assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
@@ -98,8 +103,11 @@ def test_custom_modifier_adds_effects():
             custom_gate(q)
 
     main.check()
-    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    assert ENGINE.analyzed_graph is not None
+    [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
+    effects = compute_effects(
+        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.call_info.func_effects
+    )
     assert effects[custom_use.custom_def] == frozenset({Effect.PANIC})
     assert effects[main.id, ()] == frozenset({Effect.PANIC})
 
@@ -114,7 +122,9 @@ def test_recursive_custom_modifier_same_control_count():
 
     main.check()
 
-    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    analyzed_graph = ENGINE.analyzed_graph
+    assert analyzed_graph is not None
+    [custom_use] = analyzed_graph.custom_uses_by_mono_def.values()
     custom_def = custom_use.custom_def
     helper_instantiation = (
         _same_count_helper.id,
@@ -122,8 +132,8 @@ def test_recursive_custom_modifier_same_control_count():
     )
 
     assert custom_use.control_count == 1
-    assert helper_instantiation in ENGINE.call_graph[custom_def]
-    assert custom_def in ENGINE.call_graph[helper_instantiation]
+    assert helper_instantiation in analyzed_graph.call_graph[custom_def]
+    assert custom_def in analyzed_graph.call_graph[helper_instantiation]
 
 
 def test_non_recursive_control_count_increase_is_allowed():
@@ -156,10 +166,11 @@ def test_non_recursive_control_count_increase_is_allowed():
 
     main.check()
 
-    assert {use.control_count for use in ENGINE.custom_uses_by_mono_def.values()} == {
-        1,
-        2,
-    }
+    assert ENGINE.analyzed_graph is not None
+    assert {
+        use.control_count
+        for use in ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
+    } == {1, 2}
 
 
 def test_modifier_context_propagates_through_higher_order_and_helper_calls():
@@ -213,15 +224,19 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
 
     main.check()
 
+    analyzed_graph = ENGINE.analyzed_graph
+    assert analyzed_graph is not None
     # The higher-order argument identifies one concrete apply monomorphization.
     apply_mono = next(
-        callee for callee in ENGINE.call_graph[main.id, ()] if callee[0] == apply.id
+        callee
+        for callee in analyzed_graph.call_graph[main.id, ()]
+        if callee[0] == apply.id
     )
     helper_mono = (helper.id, ())
     gate_mono = (custom_gate.id, ())
     uses_by_kind = {
         custom_use.kind: custom_use
-        for custom_use in ENGINE.custom_uses_by_mono_def.values()
+        for custom_use in analyzed_graph.custom_uses_by_mono_def.values()
     }
     assert set(uses_by_kind) == {
         CustomModifierKind.CONTROLLED,
@@ -231,10 +246,10 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
     daggered_use = uses_by_kind[CustomModifierKind.DAGGERED]
 
     # Checking records only the empty contexts local to each helper body.
-    assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+    assert set(ENGINE.call_info.local_modifiers_by_edge[apply_mono, gate_mono]) == {
         NO_CALL_MODIFIERS
     }
-    assert set(ENGINE.local_modifiers_by_edge[helper_mono, gate_mono]) == {
+    assert set(ENGINE.call_info.local_modifiers_by_edge[helper_mono, gate_mono]) == {
         NO_CALL_MODIFIERS
     }
 
@@ -247,8 +262,8 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
     # The projected graph retains the controlled and daggered targets for both paths,
     # without retaining the unmodified gate that neither path calls.
     expected_custom_defs = {controlled_use.custom_def, daggered_use.custom_def}
-    assert set(ENGINE.call_graph[apply_mono]) == expected_custom_defs
-    assert set(ENGINE.call_graph[helper_mono]) == expected_custom_defs
+    assert set(analyzed_graph.call_graph[apply_mono]) == expected_custom_defs
+    assert set(analyzed_graph.call_graph[helper_mono]) == expected_custom_defs
 
 
 @pytest.mark.parametrize("comptime", [False, True])
@@ -288,9 +303,11 @@ def test_custom_modifier_in_returned_function(comptime):
         return 1 if result else 0
 
     main.check()
-    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    analyzed_graph = ENGINE.analyzed_graph
+    assert analyzed_graph is not None
+    [custom_use] = analyzed_graph.custom_uses_by_mono_def.values()
     assert custom_use.control_count == 1
-    assert custom_use.custom_def in ENGINE.call_graph[loaded.id, ()]
+    assert custom_use.custom_def in analyzed_graph.call_graph[loaded.id, ()]
 
 
 def test_loaded_function_does_not_inherit_modifiers():
@@ -337,14 +354,16 @@ def test_loaded_function_does_not_inherit_modifiers():
             loader()
 
     main.check()
-    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    analyzed_graph = ENGINE.analyzed_graph
+    assert analyzed_graph is not None
+    [custom_use] = analyzed_graph.custom_uses_by_mono_def.values()
     assert custom_use.kind == CustomModifierKind.CONTROLLED
     assert custom_use.control_count == 1
-    assert ENGINE.call_graph[loader.id, ()] == []
-    assert ENGINE.call_graph[factory.id, ()] == []
+    assert analyzed_graph.call_graph[loader.id, ()] == ()
+    assert analyzed_graph.call_graph[factory.id, ()] == ()
     loaded_mono = (loaded.id, (ConstArg(ConstValue(nat_type(), 2)),))
-    assert ENGINE.call_graph[loaded_mono] == [(helper.id, ())]
-    assert ENGINE.call_graph[helper.id, ()] == [custom_use.custom_def]
+    assert analyzed_graph.call_graph[loaded_mono] == ((helper.id, ()),)
+    assert analyzed_graph.call_graph[helper.id, ()] == (custom_use.custom_def,)
 
 
 def test_propagated_context_does_not_change_unmodified_invocation():
@@ -372,18 +391,50 @@ def test_propagated_context_does_not_change_unmodified_invocation():
 
     main.check()
 
+    analyzed_graph = ENGINE.analyzed_graph
+    assert analyzed_graph is not None
     # Both call sites share the same monomorphized higher-order function.
     [apply_mono] = {
-        callee for callee in ENGINE.call_graph[main.id, ()] if callee[0] == apply.id
+        callee
+        for callee in analyzed_graph.call_graph[main.id, ()]
+        if callee[0] == apply.id
     }
-    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    [custom_use] = analyzed_graph.custom_uses_by_mono_def.values()
     gate_mono = (custom_gate.id, ())
 
     # Projecting contextual states keeps both valid targets: the unmodified invocation
     # reaches __call__, while the controlled invocation reaches controlled[1].
-    assert gate_mono in ENGINE.call_graph[apply_mono]
-    assert custom_use.custom_def in ENGINE.call_graph[apply_mono]
+    assert gate_mono in analyzed_graph.call_graph[apply_mono]
+    assert custom_use.custom_def in analyzed_graph.call_graph[apply_mono]
     # Propagation must not mutate the empty local label checked inside apply.
-    assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+    assert set(ENGINE.call_info.local_modifiers_by_edge[apply_mono, gate_mono]) == {
         NO_CALL_MODIFIERS
     }
+
+
+def test_library_compiles_custom_dagger():
+    """Regression test for https://github.com/Quantinuum/guppylang/issues/2469."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            s(q)
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            x(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        with dagger:
+            custom_gate(q)
+
+    hugr = GuppyLibrary.from_members(main).compile().modules[0]
+    gate_names = [
+        data.op.op_def().name
+        for _, data in hugr.nodes()
+        if isinstance(data.op, ops.ExtOp)
+    ]
+    # Automatic daggering of S would produce Sdg instead of the custom X.
+    assert gate_names == ["X"]

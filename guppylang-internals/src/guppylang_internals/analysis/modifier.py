@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from guppylang_internals.analysis.callgraph import ModifierAnalysisResult
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -56,24 +57,6 @@ class ResolvedCustomCall:
     call: Span
 
 
-@dataclass(frozen=True)
-class ModifierAnalysisResult:
-    """Result of propagating modifiers through a monomorphized call graph.
-
-    Args:
-        expanded_calls: Call graph after propagating modifiers and resolving calls to
-            custom modified implementations.
-        resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
-            context.
-        custom_uses_by_mono_def: Concrete custom modifier uses keyed by custom
-            definition ``MonoDefId``.
-    """
-
-    expanded_calls: dict[MonoDefId, list[MonoDefId]]
-    resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
-    custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
-
-
 ResolveModifiedCall = Callable[
     [MonoDefId, ModifierContext], tuple[MonoDefId, ConcreteCustomUse | None]
 ]
@@ -82,7 +65,7 @@ ResolveModifiedCall = Callable[
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
     raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
-    load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+    load_graph: Mapping[MonoDefId, Collection[MonoDefId]],
     local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
 ) -> ModifierAnalysisResult:
@@ -94,6 +77,9 @@ def analyze_modifier_calls(
     Functions loaded as values are additional roots with no inherited modifiers.
     Explore their calls and further loads, and record loads separately from the
     call graph.
+
+    Return a snapshot of the resolved call graph, load graph, and concrete custom
+    modifier uses keyed by custom definition ``MonoDefId``.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
@@ -208,11 +194,7 @@ def analyze_modifier_calls(
     _check_recursive_custom_uses(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
-    return ModifierAnalysisResult(
-        expanded_calls,
-        resolved_calls,
-        custom_uses_by_mono_def,
-    )
+    return ModifierAnalysisResult(expanded_calls, load_graph, custom_uses_by_mono_def)
 
 
 def _check_recursive_custom_uses(
