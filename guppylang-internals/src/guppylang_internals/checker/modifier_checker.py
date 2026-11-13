@@ -51,7 +51,18 @@ def check_modified_block(
     def_ass_before = ctx.locals.keys()
     maybe_ass_before = def_ass_before | parent_cfg.maybe_ass_before[bb]
 
-    cfg.analyze(def_ass_before, maybe_ass_before, [])
+    stats = cfg.analyze(def_ass_before, maybe_ass_before, [])
+
+    if modified_block.has_power():
+        for body_stats in stats.values():
+            reassigned = def_ass_before & (
+                body_stats.assigned.keys()
+                | body_stats.assigned_in_modifier_block.keys()
+            )
+            if reassigned:
+                raise InternalGuppyError(
+                    f"Power block reassigns outer variables: {', '.join(sorted(reassigned))}"
+                )
 
     # If the body only accesses some fields of a struct or elements of a tuple, we
     # capture those instead of the whole value. This allows, for example, using one
