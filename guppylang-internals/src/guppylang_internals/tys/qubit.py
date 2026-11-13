@@ -1,4 +1,5 @@
 import functools
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
 
 from guppylang_internals.tys.arg import TypeArg
@@ -75,3 +76,9 @@ def contain_qubit_ty(ty: Type) -> bool:
         return True
     else:
         return False
+
+
+def is_quantum_signature(input_tys: Iterable[Type], output_ty: Type) -> bool:
+    """Checks if a function with the given input and output types is quantum, i.e.
+    if any of its inputs or its output contains a qubit."""
+    return contain_qubit_ty(output_ty) or any(contain_qubit_ty(t) for t in input_tys)

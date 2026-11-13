@@ -2106,6 +2106,7 @@ def check_generator(
         ctx.generic_param_inst,
         current_caller=ctx.current_caller,
         modifier_ctx=ctx.modifier_ctx,
+        quantum_scope=ctx.quantum_scope,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
