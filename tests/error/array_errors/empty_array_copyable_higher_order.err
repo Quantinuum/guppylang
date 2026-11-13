@@ -1,0 +1,8 @@
+Error: Expected a linear element type (at $FILE:7:17)
+  | 
+5 | @guppy
+6 | def main() -> None:
+7 |     make_empty = empty_array[float, 0]
+  |                  ^^^^^^^^^^^ Expected a linear element type, got type `float`
+
+Guppy compilation failed due to 1 previous error

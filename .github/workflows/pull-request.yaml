@@ -64,6 +64,9 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
+      - name: Install compiler SDK
+        uses: Quantinuum/hugrverse-env/install-hugrenv-action@e8b183a5a583c37ef20ec94b5eaf257e9616cddc
+
       - name: Install Guppy
         run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
@@ -106,6 +109,9 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+
+      - name: Install compiler SDK
+        uses: Quantinuum/hugrverse-env/install-hugrenv-action@e8b183a5a583c37ef20ec94b5eaf257e9616cddc
 
       - name: Install Guppy
         run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}

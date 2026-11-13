@@ -1,0 +1,41 @@
+{
+  "version": "1.1.0",
+  "hashes": {
+    "macosx_11_0": {
+      "aarch64": {
+        "llvm": "sha256-fXhBdrvz76ScXGQqhn8P9B3u5s0TG+ARM20f4vrumdk=",
+        "tket": "sha256-avjhpfeFAqqJ9KiwqG87DSsHlmjZTh7gqUK9Cs8yYgc="
+      },
+      "x86_64": {
+        "llvm": "sha256-apq/sWSV1g8ld3R/NhSDF6YJZqL4cAuAeqO6LvNJWWY=",
+        "tket": "sha256-osltla8c+HVHod1Ac145wReJL+fdsD9mPBhEReN1zlw="
+      }
+    },
+    "manylinux_2_28": {
+      "aarch64": {
+        "llvm": "sha256-Myv6z/X2YE2xy+P0jfiGIYZxOGjCT8jpfP1UNnquADs=",
+        "tket": "sha256-Y309/stgviO1kOcpoA1oAH6XsJvYs6LY/J/qbdxHxG0="
+      },
+      "x86_64": {
+        "llvm": "sha256-ImMYzRweoOBcpl4ZaFE9iNhSCaPReZq12ruHpMUovJM=",
+        "tket": "sha256-cmJMqua9CheefIGDksRQc9wa1Z/3IBctRVN6d2qzTQw="
+      }
+    },
+    "win": {
+      "amd64": {
+        "llvm": "sha256-aHq7X3BpkcT4zxhBIeuN0o8vE0AqheYs3Ylz8UclqNs=",
+        "tket": "sha256-eLp8I9p4PLi5thxvkDL3oNOw5dwh3x9HXxh021Pi1S8="
+      }
+    },
+    "emscripten_4_0_9": {
+      "wasm32": {
+        "tket": "sha256-BxGwRitI8pJYtRTRuPB9yNYtgHKciDm9ZW0FfWS4Ejc="
+      }
+    },
+    "emscripten_5_0_3": {
+      "wasm32": {
+        "tket": "sha256-U9EN18uSkMzzzCMn8NX2kmVQrKYUyYsgeRFKp+7Ayr4="
+      }
+    }
+  }
+}

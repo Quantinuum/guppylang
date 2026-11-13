@@ -1,0 +1,8 @@
+Error: Expected a linear element type (at $FILE:8:11)
+  | 
+6 | @guppy
+7 | def make_empty[T, n: nat]() -> array[T, n]:
+8 |     return empty_array[T, n]()
+  |            ^^^^^^^^^^^ Expected a linear element type, got type `int`
+
+Guppy compilation failed due to 1 previous error
