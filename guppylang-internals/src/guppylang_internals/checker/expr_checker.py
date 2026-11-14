@@ -292,9 +292,18 @@ def record_function_load(node: ast.expr, ty: Type, ctx: Context) -> None:
 
     match node:
         case GlobalName(def_id=def_id):
+            from guppylang_internals.definition.overloaded import (
+                OverloadedFunctionDef,
+                OverloadHigherOrderError,
+            )
+
+            # Reject values before the overload's dummy signature can cause a
+            # misleading type mismatch. Direct calls do not register loads.
+            if isinstance(defn := ENGINE.get_parsed(def_id), OverloadedFunctionDef):
+                raise GuppyError(OverloadHigherOrderError(node, defn.name))
             # Function-valued constants also have FunctionType, but their definition
             # IDs identify constants rather than callable load targets.
-            if isinstance(ENGINE.get_parsed(def_id), CallableDef):
+            if isinstance(defn, CallableDef):
                 ENGINE.register_load(ctx.current_caller, (def_id, inst))
         case TypeApply(value=GlobalName(def_id=def_id), inst=inst):
             # A specialized reference: `g = f[int]`, or `g: Function[[int], int] = f`
