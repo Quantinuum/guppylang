@@ -13,6 +13,8 @@ tests_that_require_experimental_features = [
     "captured_classical_modified_nested.py",
     "captured_classical_modified_sequential.py",
     "captured_modifier_in_branch.py",
+    "control_index_checked_before_nested_dagger_cancels.py",
+    "control_index_checked_in_outer_dagger.py",
     "dagger_branch2.py",
     "dagger_loop3.py",
     "flags_nested.py",
@@ -22,6 +24,8 @@ tests_that_require_experimental_features = [
     "flags_triple_dagger2.py",
     "power_arg_type.py",
     "power_arg_typecheck_inside.py",
+    "power_argument_checked_before_nested_dagger_cancels.py",
+    "power_argument_checked_in_outer_dagger.py",
     "power_many_arg.py",
     "power_no_arg.py",
 ]
