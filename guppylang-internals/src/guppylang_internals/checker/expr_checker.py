@@ -297,9 +297,10 @@ def record_function_load(node: ast.expr, ty: Type, ctx: Context) -> None:
                 OverloadHigherOrderError,
             )
 
+            defn = ENGINE.get_parsed(def_id)
             # Reject values before the overload's dummy signature can cause a
             # misleading type mismatch. Direct calls do not register loads.
-            if isinstance(defn := ENGINE.get_parsed(def_id), OverloadedFunctionDef):
+            if isinstance(defn, OverloadedFunctionDef):
                 raise GuppyError(OverloadHigherOrderError(node, defn.name))
             # Function-valued constants also have FunctionType, but their definition
             # IDs identify constants rather than callable load targets.

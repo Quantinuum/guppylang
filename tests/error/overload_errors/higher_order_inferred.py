@@ -18,4 +18,4 @@ def main() -> None:
     f = overloaded
 
 
-main.check()
+main.compile()

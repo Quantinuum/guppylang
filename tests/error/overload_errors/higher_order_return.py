@@ -19,4 +19,4 @@ def main() -> Function[[bool], None]:
     return overloaded
 
 
-main.check()
+main.compile()

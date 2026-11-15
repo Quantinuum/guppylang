@@ -23,4 +23,4 @@ def main() -> None:
     consume(overloaded)
 
 
-main.check()
+main.compile()
