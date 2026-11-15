@@ -26,6 +26,7 @@ tests_that_require_experimental_features = [
     "power_arg_typecheck_inside.py",
     "power_argument_checked_before_nested_dagger_cancels.py",
     "power_argument_checked_in_outer_dagger.py",
+    "power_argument_in_unitary_function.py",
     "power_many_arg.py",
     "power_no_arg.py",
 ]
