@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from guppylang_internals.analysis.callgraph import ModifierAnalysisResult
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -37,6 +37,47 @@ class ConcreteCustomUse:
     custom_def: MonoDefId
     kind: CustomModifierKind
     control_count: int | None
+
+
+@dataclass(frozen=True, init=False)
+class ModifierAnalysisResult:
+    """An immutable snapshot of program dependencies and custom modifier uses after
+    modifier analysis.
+
+    Call rows preserve order and repeated calls. Load rows record function-value
+    dependencies, which do not contribute to call components or effect propagation.
+    ``custom_uses_by_mono_def`` maps custom definition IDs to concrete modifier uses.
+    """
+
+    call_graph: Mapping[MonoDefId, tuple[MonoDefId, ...]]
+    load_graph: Mapping[MonoDefId, frozenset[MonoDefId]]
+    custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse]
+
+    def __init__(
+        self,
+        call_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+        load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+        custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
+    ) -> None:
+        object.__setattr__(
+            self,
+            "call_graph",
+            MappingProxyType(
+                {caller: tuple(callees) for caller, callees in call_graph.items()}
+            ),
+        )
+        object.__setattr__(
+            self,
+            "load_graph",
+            MappingProxyType(
+                {owner: frozenset(loads) for owner, loads in load_graph.items()}
+            ),
+        )
+        object.__setattr__(
+            self,
+            "custom_uses_by_mono_def",
+            MappingProxyType(dict(custom_uses_by_mono_def)),
+        )
 
 
 @dataclass(frozen=True)
