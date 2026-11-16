@@ -408,7 +408,7 @@ class EmptyArrayCopyableError(Error):
     class Explanation(Note):
         message: ClassVar[str] = (
             "Only arrays with non-copyable elements can be created empty. Consider "
-            "constructing the array directly, e.g. via an array comprehension"
+            "constructing the array directly, e.g. via an array comprehension."
         )
 
 
