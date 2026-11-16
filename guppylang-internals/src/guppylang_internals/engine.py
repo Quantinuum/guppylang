@@ -397,7 +397,6 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_info = CallInfo()
-        # Discard analysis derived from the call information that was just reset.
         self.analyzed_graph = None
 
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
