@@ -79,7 +79,7 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
 
         # Mostly copied from RawStructDef.parse, but only allowing function declarations
         # in the body and allowing `Protocol` as a base class.
-        frame = DEF_STORE.frames[self.id]
+        frame = DEF_STORE.get_def_frame(self.id)
         cls_def = parse_py_class(self.python_class, frame, sources)
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))

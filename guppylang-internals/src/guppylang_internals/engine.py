@@ -7,6 +7,7 @@ from enum import Enum
 from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, ClassVar, assert_never, cast
+from weakref import WeakValueDictionary, finalize
 
 import hugr
 import hugr.build.function as hf
@@ -164,48 +165,66 @@ class CompilationStage(Enum):
 
 
 class DefinitionStore:
-    """Storage class holding references to all Guppy definitions created in the current
-    interpreter session.
+    """Lookup table for live Guppy definitions in the current interpreter session.
 
     See `DEF_STORE` for the singleton instance of this class.
     """
 
-    raw_defs: dict[DefId, RawDef]
+    raw_defs: WeakValueDictionary[DefId, RawDef]
     type_members: defaultdict[DefId, dict[str, DefId]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
-    frames: dict[DefId, FrameType | FrameSnapshot]
     sources: SourceMap
     # Maps a parent definition (usually a function) to its custom modified definitions
     custom_modified_defs: dict[DefId, dict[CustomModifierKind, DefId]]
     # Reverse mapping for custom modified definitions to their unmodified definition
     custom_modified_def_parents: dict[DefId, DefId]
     # Tracks frame registrations made inside detach_new_frames.
-    _registered_frame_defs: set[DefId] | None
+    _registered_frame_defs: dict[DefId, RawDef] | None
 
     def __init__(self) -> None:
-        self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
+        self.raw_defs = WeakValueDictionary(
+            (defn.id, defn) for defn in BUILTIN_DEFS_LIST
+        )
         self.type_members = defaultdict(dict)
         self.type_member_parents = {}
-        self.frames = {}
         self.sources = SourceMap()
         self.wasm_functions = {}
         self.custom_modified_defs = defaultdict(dict)
         self.custom_modified_def_parents = {}
-        self._registered_frame_defs: set[DefId] | None = None
+        self._registered_frame_defs = None
 
     def register_def(self, defn: RawDef, frame: FrameType | FrameSnapshot) -> None:
         """Register a definition and its Python scope."""
+        if defn.id not in self.raw_defs:
+            finalize(defn, self._unregister_def, defn.id)
         self.raw_defs[defn.id] = defn
-        self.frames[defn.id] = frame
+        defn.scope.frame = frame
         if self._registered_frame_defs is not None and isinstance(frame, FrameType):
-            self._registered_frame_defs.add(defn.id)
+            self._registered_frame_defs[defn.id] = defn
+
+    def _unregister_def(self, def_id: DefId) -> None:
+        """Remove metadata when its definition is collected."""
+        self.type_members.pop(def_id, None)
+        self.type_member_parents.pop(def_id, None)
+        self.wasm_functions.pop(def_id, None)
+        self.custom_modified_defs.pop(def_id, None)
+        self.custom_modified_def_parents.pop(def_id, None)
+
+    def get_def_frame(self, def_id: DefId) -> FrameType | FrameSnapshot:
+        """Returns the Python scope used to resolve names in a definition."""
+        frame = self.raw_defs[def_id].scope.frame
+        assert frame is not None, "Definition has no Python scope"
+        return frame
 
     def update_def_frame(self, def_id: DefId, frame: FrameType) -> None:
         """Update the Python scope used to resolve names in a registered definition."""
-        self.frames[def_id] = frame
+        self.raw_defs[def_id].scope.frame = frame
 
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
+        previous = self.type_members[ty_id].get(name)
+        if previous is not None and previous != member_id:
+            self.raw_defs[ty_id].scope.dependencies.pop(previous, None)
         self.type_members[ty_id][name] = member_id
         self._register_type_member_parent(ty_id, member_id)
 
@@ -218,10 +237,13 @@ class DefinitionStore:
     def _register_type_member_parent(self, ty_id: DefId, member_id: DefId) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
         self.type_member_parents[member_id] = ty_id
+        parent, member = self.raw_defs[ty_id], self.raw_defs[member_id]
+        parent.add_dependencies(member)
+        member.add_dependencies(parent)
         # Advance past each class and its optional annotation scope.
-        if member_id not in self.frames:
+        if member.scope.frame is None:
             return
-        frame = self.frames[member_id]
+        frame = self.get_def_frame(member_id)
         parent_frame = frame.f_back
         if parent_frame is not None:
             frame = parent_frame
@@ -236,7 +258,7 @@ class DefinitionStore:
                 frame = frame.f_back
                 assert frame is not None
 
-        self.frames[member_id] = frame
+        member.scope.frame = frame
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
@@ -252,27 +274,29 @@ class DefinitionStore:
         custom_defs[kind] = custom_def_id
         assert custom_def_id not in self.custom_modified_def_parents
         self.custom_modified_def_parents[custom_def_id] = parent_def_id
+        parent, custom = self.raw_defs[parent_def_id], self.raw_defs[custom_def_id]
+        parent.add_dependencies(custom)
+        custom.add_dependencies(parent)
 
     @contextmanager
     def detach_new_frames(self) -> Generator[None, None, None]:
-        """Break references to caller frames in `self.frames` after exiting this
-        context.
+        """Snapshot scopes registered while checking or compiling.
 
         Frames inside this context are kept alive so forward references and
         class-member scope changes get reflected in the local frames.
         """
         assert self._registered_frame_defs is None, "Frame detachment cannot be nested"
-        self._registered_frame_defs = set()
+        self._registered_frame_defs = {}
         try:
             yield
         finally:
             snapshots: dict[FrameType, FrameSnapshot] = {}
-            for def_id in self._registered_frame_defs:
-                frame = self.frames[def_id]
+            for defn in self._registered_frame_defs.values():
+                frame = defn.scope.frame
                 if isinstance(frame, FrameType):
                     if frame not in snapshots:
                         snapshots[frame] = FrameSnapshot.from_frame(frame)
-                    self.frames[def_id] = snapshots[frame]
+                    defn.scope.frame = snapshots[frame]
             self._registered_frame_defs = None
 
 
@@ -443,10 +467,14 @@ class CompilationEngine:
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
             self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
-            defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
+            defn = defn.parse(
+                Globals(DEF_STORE.get_def_frame(defn.id)), DEF_STORE.sources
+            )
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
+            if defn is not DEF_STORE.raw_defs[id]:
+                defn.add_dependencies(DEF_STORE.raw_defs[id])
             self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
@@ -507,11 +535,11 @@ class CompilationEngine:
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
             self.assert_stage(CompilationStage.CHECK, f"check {defn}")
-            defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
+            defn = defn.check(Globals(DEF_STORE.get_def_frame(defn.id)))
         elif isinstance(defn, CheckableGenericDef):
             self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = _check_generic_def_instantiation(
-                defn, mono_args, Globals(DEF_STORE.frames[defn.id])
+                defn, mono_args, Globals(DEF_STORE.get_def_frame(defn.id))
             )
         self.checked[id, mono_args] = defn
 
@@ -519,8 +547,9 @@ class CompilationEngine:
         from guppylang_internals.definition.struct import CheckedStructDef
 
         if isinstance(defn, CheckedStructDef | CheckedEnumDef):
+            defn.add_dependencies(DEF_STORE.raw_defs[id])
             for method_def in defn.generated_methods():
-                DEF_STORE.register_def(method_def, DEF_STORE.frames[id])
+                DEF_STORE.register_def(method_def, DEF_STORE.get_def_frame(id))
                 DEF_STORE.register_type_member(defn.id, method_def.name, method_def.id)
 
         return defn

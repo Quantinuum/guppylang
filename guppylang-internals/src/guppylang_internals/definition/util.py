@@ -256,7 +256,7 @@ def _type_parsing_ctx(defn: ParsedRecursiveTypeDef) -> TypeParsingCtx:
     from guppylang_internals.engine import DEF_STORE
 
     param_var_mapping = {p.name: p for p in defn.params} if defn.params else {}
-    return TypeParsingCtx(Globals(DEF_STORE.frames[defn.id]), param_var_mapping)
+    return TypeParsingCtx(Globals(DEF_STORE.get_def_frame(defn.id)), param_var_mapping)
 
 
 def _is_parsed_recursive_type_def(

@@ -294,7 +294,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             with_loc(ast_node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
         ctx = Context(
-            Globals(DEF_STORE.frames[func.id]),
+            Globals(DEF_STORE.get_def_frame(func.id)),
             locals,
             {},
             current_caller=state.current_caller,

@@ -639,6 +639,7 @@ class _Guppy:
                 is_static=False,
             )
             defn = replace(defn, is_static=is_overload_static(defn))
+            defn.add_dependencies(*(func.wrapped for func in funcs))
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 

@@ -3,11 +3,13 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from types import FrameType
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from hugr.build.dfg import DefinitionBuilder, OpVar
 
 from guppylang_internals.diagnostic import Fatal
+from guppylang_internals.frame_util import FrameSnapshot
 from guppylang_internals.span import SourceMap
 
 if TYPE_CHECKING:
@@ -61,8 +63,22 @@ class Definition(ABC):
     name: str
     defined_at: ast.AST | None
 
+    # Keep scopes with their definitions so unused definitions can be collected,
+    # including cycles through the defining frame's locals.
+    scope: "DefinitionScope" = field(
+        default_factory=lambda: DefinitionScope(), init=False, repr=False, compare=False
+    )
+
     def __str__(self) -> str:
         return self.to_str()
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "Definition":
+        """Preserve definition identity when copying compiler types and ASTs."""
+        return self
+
+    def add_dependencies(self, *definitions: "Definition") -> None:
+        """Keep these definitions alive for as long as this definition is in use."""
+        self.scope.dependencies.update((defn.id, defn) for defn in definitions)
 
     def to_str(self) -> str:
         """Returns a string identifying this definition and its kind.
@@ -85,6 +101,14 @@ class Definition(ABC):
         The returned text should fit into messages of the following form: "expected
         a function, but got {description of this definition} instead".
         """
+
+
+@dataclass
+class DefinitionScope:
+    """Python scope and dependencies owned by a registered definition."""
+
+    frame: FrameType | FrameSnapshot | None = None
+    dependencies: dict[DefId, Definition] = field(default_factory=dict)
 
 
 class ParsableDef(Definition):

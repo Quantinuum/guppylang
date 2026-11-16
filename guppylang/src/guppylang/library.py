@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Self
 
-from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from hugr.package import Package
 
@@ -40,6 +40,14 @@ class GuppyLibrary:
     """
 
     members: list[DefId] = field(default_factory=list)
+    #: Owns the member definitions so they stay registered while the library is alive.
+    _definitions: dict[DefId, Definition] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        """Retain the definitions identified by the initial member list."""
+        self._definitions.update((id, DEF_STORE.raw_defs[id]) for id in self.members)
 
     def _type_members(self) -> list[DefId]:
         """Any implementations registered for members of this library. Note that the
@@ -89,6 +97,7 @@ class GuppyLibrary:
 
         Returns the member itself, so it can be used as a decorator."""
         self.members.append(member.id)
+        self._definitions[member.id] = member.wrapped
         return member
 
     @classmethod

@@ -151,7 +151,7 @@ class ComptimeConstValue(ConstBase):
             param.name: arg or param.to_existential()[0]
             for param, arg in zip(self.params, self.inst, strict=True)
         }
-        globals = Globals(DEF_STORE.frames[self.containing_def_id])
+        globals = Globals(DEF_STORE.get_def_frame(self.containing_def_id))
         ctx = Context(globals, Locals({}), inst)
         try:
             v = eval_comptime_expr(self.expr, ctx)

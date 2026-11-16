@@ -95,7 +95,7 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
 
     def parse(self, globals: "Globals", sources: SourceMap) -> "ParsedEnumDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
-        frame = DEF_STORE.frames[self.id]
+        frame = DEF_STORE.get_def_frame(self.id)
         cls_def = parse_py_class(self.python_class, frame, sources)
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
@@ -255,7 +255,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         """Checks if the enum can be instantiated with the given arguments."""
         check_all_args(self.params, args, self.name, loc)
 
-        globals = Globals(DEF_STORE.frames[self.id])
+        globals = Globals(DEF_STORE.get_def_frame(self.id))
         # TODO: This is quite bad: If we have a cyclic definition this will not
         #  terminate, so we have to check for cycles in every call to `check`. The
         #  proper way to deal with this is changing `EnumType` such that it only

@@ -98,7 +98,7 @@ class ParsedTypeAliasDef(TypeDef, CheckableDef):
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
-        globals = Globals(DEF_STORE.frames[self.id])
+        globals = Globals(DEF_STORE.get_def_frame(self.id))
         checked_def = self.check(globals)
         return checked_def.check_instantiate(args, loc)
 
