@@ -13,14 +13,14 @@ from guppylang_internals.checker.modifier import (
     ModifierContext,
 )
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.engine import ENGINE, CompilationStage
-from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.engine import ENGINE, CompilationStage, CompilationStageError
 from guppylang_internals.span import Loc, Span
 from guppylang_internals.tys import Effect
 
 
 @pytest.mark.parametrize("mutation", ["load", "call", "effects", "node"])
-def test_call_info_mutation_invalidates_analysis(mutation):
+@pytest.mark.parametrize("stage", list(CompilationStage))
+def test_call_info_mutation_rejected_after_analysis(mutation, stage):
     @guppy
     def root() -> int:
         return 42
@@ -29,49 +29,35 @@ def test_call_info_mutation_invalidates_analysis(mutation):
     assert ENGINE.analyzed_graph is not None
     mono_id = (root.id, ())
 
-    match mutation:
-        case "load":
-            ENGINE.register_load(mono_id, mono_id)
-        case "call":
-            callee = ENGINE.get_parsed(root.id)
-            ctx = SimpleNamespace(
-                current_caller=mono_id, modifier_ctx=NO_CALL_MODIFIERS
-            )
-            ENGINE.register_call(ctx, callee, (), callee.defined_at)
-        case "effects":
-            ENGINE.register_effects(mono_id, [Effect.PANIC])
-        case "node":
-            ENGINE.register_call_graph_node((DefId.fresh(), ()))
-
-    assert ENGINE.analyzed_graph is None
-    with (
-        ENGINE._in_stage(CompilationStage.COMPILE),
-        pytest.raises(AssertionError, match="analyzed_graph is None"),
-    ):
-        ENGINE._compile_impl([root.id], "dummy context")
-
-
-def test_lazy_check_invalidates_analysis_and_compile_recomputes_it():
-    @guppy
-    def first() -> int:
-        return 1
-
-    @guppy
-    def second() -> int:
-        return 2
-
-    first.check()
+    original_info = deepcopy(ENGINE.call_info)
     original_analysis = ENGINE.analyzed_graph
-    assert original_analysis is not None
-    ENGINE.get_checked(first.id, ())
-    assert ENGINE.analyzed_graph is original_analysis
+    error = AssertionError if stage == CompilationStage.CHECK else CompilationStageError
+    message = (
+        "Call information must not change after analysis"
+        if stage == CompilationStage.CHECK
+        else "update call information"
+    )
 
-    ENGINE.get_checked(second.id, ())
-    assert ENGINE.analyzed_graph is None
-    ENGINE.compile([first.id, second.id], reset=False)
-    assert ENGINE.analyzed_graph is not None
-    assert ENGINE.analyzed_graph is not original_analysis
-    assert (second.id, ()) in ENGINE.analyzed_graph.call_graph
+    def mutate():
+        match mutation:
+            case "load":
+                ENGINE.register_load(mono_id, mono_id)
+            case "call":
+                callee = ENGINE.get_parsed(root.id)
+                ctx = SimpleNamespace(
+                    current_caller=mono_id, modifier_ctx=NO_CALL_MODIFIERS
+                )
+                ENGINE.register_call(ctx, callee, (), callee.defined_at)
+            case "effects":
+                ENGINE.register_effects(mono_id, [Effect.PANIC])
+            case "node":
+                ENGINE.register_call_graph_node((DefId.fresh(), ()))
+
+    with ENGINE._in_stage(stage), pytest.raises(error, match=message):
+        mutate()
+
+    assert ENGINE.call_info == original_info
+    assert ENGINE.analyzed_graph is original_analysis
 
 
 def test_compilation_rejects_call_info_mutation(monkeypatch):
@@ -89,7 +75,7 @@ def test_compilation_rejects_call_info_mutation(monkeypatch):
         ENGINE.register_effects((root.id, ()), [Effect.PANIC])
 
     monkeypatch.setattr(CompilerContext, "iterate_worklist", mutate_after_lowering)
-    with pytest.raises(InternalGuppyError, match="Call information changed"):
+    with pytest.raises(CompilationStageError, match="update call information"):
         ENGINE.compile([root.id])
 
 

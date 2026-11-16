@@ -340,11 +340,10 @@ class CompilationEngine:
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
     #: Original graph, effect, and modifier information recorded during checking.
-    #: Mutations invalidate analyzed_graph to prevent compiling stale analysis.
+    #: Mutated only during checking, before analyzed_graph is computed.
     call_info: CallInfo
     #: Resolved graphs and custom uses from the last completed check().
-    #: Compilation reads this snapshot; call_info mutations and reset() clear it.
-    #: check() recomputes it.
+    #: Compilation reads this snapshot; reset() clears it; check() recomputes it.
     analyzed_graph: ModifierAnalysisResult | None
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
@@ -402,8 +401,10 @@ class CompilationEngine:
 
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
         """Records a function-value dependency, without propagating call effects."""
-        # Invalidate analysis before changing load dependencies to avoid stale results.
-        self.analyzed_graph = None
+        self.assert_stage(CompilationStage.CHECK, "update call information")
+        assert self.analyzed_graph is None, (
+            "Call information must not change after analysis"
+        )
         self.call_info.load_graph[owner].add(target)
 
     def register_call(
@@ -415,8 +416,10 @@ class CompilationEngine:
     ) -> None:
         """Registers a function call in the call graph. If the callee is a
         `CallableEffects` then also registers those effects for that callee."""
-        # Invalidate analysis before changing calls and their modifier contexts.
-        self.analyzed_graph = None
+        self.assert_stage(CompilationStage.CHECK, "update call information")
+        assert self.analyzed_graph is None, (
+            "Call information must not change after analysis"
+        )
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
         assert ctx.current_caller in self.call_info.call_graph
@@ -432,8 +435,10 @@ class CompilationEngine:
     def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a function, for when the effects cannot be
         attributed to some concrete callee (i.e. with its own MonoDefId)."""
-        # Require fresh analysis before compiling with the updated function effects.
-        self.analyzed_graph = None
+        self.assert_stage(CompilationStage.CHECK, "update call information")
+        assert self.analyzed_graph is None, (
+            "Call information must not change after analysis"
+        )
         self.call_info.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
@@ -563,8 +568,10 @@ class CompilationEngine:
         Thus, used to indicate the def is of a kind for which we wish to track calls
         (i.e. a user-defined function), even if it doesn't actually contain any.
         """
-        # Invalidate analysis so it includes the newly registered graph node.
-        self.analyzed_graph = None
+        self.assert_stage(CompilationStage.CHECK, "update call information")
+        assert self.analyzed_graph is None, (
+            "Call information must not change after analysis"
+        )
         assert mono_id not in self.call_info.call_graph
         self.call_info.call_graph[mono_id] = []
         self.call_info.load_graph[mono_id] = set()
