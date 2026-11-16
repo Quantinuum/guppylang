@@ -195,11 +195,11 @@ def test_analysis_returns_graph_without_mutating_checking_data():
 
     assert (calls, loads, local_modifiers) == original_inputs
     assert result.call_graph == {
-        root: (helper,),
-        helper: (custom,),
-        gate: (),
-        custom: (),
-        loaded: (gate,),
+        root: frozenset({helper}),
+        helper: frozenset({custom}),
+        gate: frozenset(),
+        custom: frozenset(),
+        loaded: frozenset({gate}),
     }
     assert result.load_graph == {
         root: frozenset(),

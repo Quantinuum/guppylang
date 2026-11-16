@@ -359,11 +359,13 @@ def test_loaded_function_does_not_inherit_modifiers():
     [custom_use] = analyzed_graph.custom_uses_by_mono_def.values()
     assert custom_use.kind == CustomModifierKind.CONTROLLED
     assert custom_use.control_count == 1
-    assert analyzed_graph.call_graph[loader.id, ()] == ()
-    assert analyzed_graph.call_graph[factory.id, ()] == ()
+    assert analyzed_graph.call_graph[loader.id, ()] == frozenset()
+    assert analyzed_graph.call_graph[factory.id, ()] == frozenset()
     loaded_mono = (loaded.id, (ConstArg(ConstValue(nat_type(), 2)),))
-    assert analyzed_graph.call_graph[loaded_mono] == ((helper.id, ()),)
-    assert analyzed_graph.call_graph[helper.id, ()] == (custom_use.custom_def,)
+    assert analyzed_graph.call_graph[loaded_mono] == frozenset({(helper.id, ())})
+    assert analyzed_graph.call_graph[helper.id, ()] == frozenset(
+        {custom_use.custom_def}
+    )
 
 
 def test_propagated_context_does_not_change_unmodified_invocation():

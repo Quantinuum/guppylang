@@ -165,9 +165,8 @@ class CallInfo:
     original edges, propagating modifier labels into them, or changing local effects.
     """
 
-    #: Original callees in call-site order, including repeated calls.
-    # NICOLA TODO: we dont need list here, since duplication is not important
-    call_graph: dict[MonoDefId, list[MonoDefId]] = field(default_factory=dict)
+    #: Original callees of each checked specialization, without duplicates.
+    call_graph: dict[MonoDefId, set[MonoDefId]] = field(default_factory=dict)
     #: Original function-value dependencies of each checked specialization.
     load_graph: dict[MonoDefId, set[MonoDefId]] = field(default_factory=dict)
     #: Effects recorded locally during checking, before call-effect propagation.
@@ -423,7 +422,7 @@ class CompilationEngine:
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
         assert ctx.current_caller in self.call_info.call_graph
-        self.call_info.call_graph[ctx.current_caller].append((callee.id, inst))
+        self.call_info.call_graph[ctx.current_caller].add((callee.id, inst))
         if isinstance(callee, CallableEffects):
             self.register_effects((callee.id, inst), callee.call_effects)
         # Record the modifier context under which the call is performed
@@ -573,7 +572,7 @@ class CompilationEngine:
             "Call information must not change after analysis"
         )
         assert mono_id not in self.call_info.call_graph
-        self.call_info.call_graph[mono_id] = []
+        self.call_info.call_graph[mono_id] = set()
         self.call_info.load_graph[mono_id] = set()
 
     def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:

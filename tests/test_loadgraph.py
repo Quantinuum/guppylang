@@ -60,7 +60,7 @@ def test_returned_function_load(comptime_factory):
     factory.check()
 
     assert ENGINE.call_info.load_graph[factory.id, ()] == {(loaded.id, ())}
-    assert ENGINE.call_info.call_graph[factory.id, ()] == []
+    assert ENGINE.call_info.call_graph[factory.id, ()] == set()
 
 
 def test_comptime_function_value():
@@ -75,7 +75,7 @@ def test_comptime_function_value():
     root.check()
 
     assert ENGINE.call_info.load_graph[root.id, ()] == {(loaded.id, ())}
-    assert ENGINE.call_info.call_graph[root.id, ()] == []
+    assert ENGINE.call_info.call_graph[root.id, ()] == set()
     assert ENGINE.call_info.load_graph[loaded.id, ()] == set()
 
 
@@ -93,7 +93,7 @@ def test_load_nested():
     [nested] = [
         mono for mono in ENGINE.call_info.call_graph if mono != (factory.id, ())
     ]
-    assert ENGINE.call_info.call_graph[factory.id, ()] == []
+    assert ENGINE.call_info.call_graph[factory.id, ()] == set()
     assert ENGINE.call_info.load_graph[factory.id, ()] == {nested}
 
 
@@ -116,7 +116,7 @@ def test_load_nested_failing_with_experimental_on(use_experimental_features):
     [nested] = [
         mono for mono in ENGINE.call_info.call_graph if mono != (factory.id, ())
     ]
-    assert ENGINE.call_info.call_graph[factory.id, ()] == []
+    assert ENGINE.call_info.call_graph[factory.id, ()] == set()
     assert ENGINE.call_info.load_graph[factory.id, ()] == {nested}
 
 
