@@ -1,6 +1,9 @@
-"""Tests optimizing Hugrs, especially with regards to complex
-control flow or classical "flattening" examples, mirroring
-the "guppy_optimization" tests in TKET2."""
+"""Tests optimizing Hugrs, especially with regards to complex control flow needing
+classical "flattening".  These mirror the "guppy_optimization" tests in TKET2
+https://github.com/Quantinuum/tket2/tree/main/test_files/guppy_optimization
+https://github.com/Quantinuum/tket2/tree/main/tket/tket-py/test/test_guppy_opt.py
+but (since those use pinned versions of guppy) are intended to catch changes to
+the guppy compiler that may affect optimization."""
 
 from collections.abc import Callable
 import pytest
