@@ -18,6 +18,9 @@ check:
 # Run the tests.
 test *PYTEST_FLAGS:
     uv run pytest -n auto {{PYTEST_FLAGS}}
+# Update the test snapshots.
+update-snapshots *PYTEST_FLAGS:
+    uv run pytest -n auto --snapshot-update {{PYTEST_FLAGS}}
 
 # Export the integration test cases to a directory.
 export-integration-tests directory="guppy-exports":
