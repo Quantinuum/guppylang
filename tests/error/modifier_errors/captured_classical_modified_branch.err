@@ -7,7 +7,7 @@ Error: Variable assigned in modifier block (at $FILE:11:15)
 
 Note:
    | 
- 8 |     with power(2):
+ 8 |     with dagger:
  9 |         x += 1
    |         ------ ... since it was assigned in a modifier block
 

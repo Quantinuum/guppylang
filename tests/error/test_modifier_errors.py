@@ -8,7 +8,6 @@ files = collect_error_test_cases("modifier_errors")
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
     "captured_classical_modified.py",
-    "captured_classical_modified_branch.py",
     "captured_classical_modified_multiple.py",
     "captured_classical_modified_nested.py",
     "captured_classical_modified_sequential.py",
@@ -24,6 +23,10 @@ tests_that_require_experimental_features = [
     "power_arg_typecheck_inside.py",
     "power_many_arg.py",
     "power_no_arg.py",
+    "power_reassign_outer.py",
+    "power_reassign_outer_augmented.py",
+    "power_reassign_outer_branch.py",
+    "power_reassign_outer_nested.py",
 ]
 files_with_experimental_flag = [
     (file, any(case in file for case in tests_that_require_experimental_features))

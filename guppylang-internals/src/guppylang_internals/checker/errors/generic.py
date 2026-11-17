@@ -76,6 +76,26 @@ class UnknownModifierError(Error):
 
 
 @dataclass(frozen=True)
+class ReassignedInPowerError(Error):
+    title: ClassVar[str] = "Outer variable reassigned in power block"
+    span_label: ClassVar[str] = "`{var}` is defined outside this power block"
+    var: str
+
+    @dataclass(frozen=True)
+    class Power(Note):
+        span_label: ClassVar[str] = "power modifier is used here"
+
+    @dataclass(frozen=True)
+    class Explanation(Help):
+        message: ClassVar[str] = (
+            "Variables defined outside a power block cannot be reassigned inside it. "
+            "Variables assigned inside a modifier block are not available outside "
+            "that block, so reassigning an outer variable would make it unavailable "
+            "in subsequent iterations of the power block."
+        )
+
+
+@dataclass(frozen=True)
 class RecursiveModifierControlCountError(Error):
     title: ClassVar[str] = "Increasing control count in recursive custom modifier"
     span_label: ClassVar[str] = (

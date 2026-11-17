@@ -15,10 +15,11 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.checker.errors.generic import ReassignedInPowerError
 from guppylang_internals.checker.linearity_checker import parent_places
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import (
     CheckedModifiedBlock,
     ComptimeExpr,
@@ -55,14 +56,16 @@ def check_modified_block(
 
     if modified_block.has_power():
         for body_stats in stats.values():
-            reassigned = def_ass_before & (
-                body_stats.assigned.keys()
-                | body_stats.assigned_in_modifier_block.keys()
-            )
+            assignments = body_stats.assigned_in_modifier_block | body_stats.assigned
+            reassigned = def_ass_before & assignments.keys()
             if reassigned:
-                raise InternalGuppyError(
-                    f"Power block reassigns outer variables: {', '.join(sorted(reassigned))}"
+                var = min(reassigned)
+                err = ReassignedInPowerError(assignments[var], var)
+                err.add_sub_diagnostic(
+                    ReassignedInPowerError.Power(modified_block.power[0])
                 )
+                err.add_sub_diagnostic(ReassignedInPowerError.Explanation(None))
+                raise GuppyError(err)
 
     # If the body only accesses some fields of a struct or elements of a tuple, we
     # capture those instead of the whole value. This allows, for example, using one
