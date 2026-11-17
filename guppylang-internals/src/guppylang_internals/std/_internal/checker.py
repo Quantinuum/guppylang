@@ -45,6 +45,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PlaceNode,
 )
+from guppylang_internals.std._internal.compiler.array import check_empty_array_elem_ty
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
@@ -61,7 +62,7 @@ from guppylang_internals.tys.builtin import (
     string_type,
 )
 from guppylang_internals.tys.const import Const, ConstValue
-from guppylang_internals.tys.subst import Subst
+from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -190,6 +191,38 @@ class ArrayCopyChecker(CustomCallChecker):
         )
         node = make_global_call(self.func, [array_arg], inst)
         return with_loc(self.node, node), get_type(array_arg)
+
+
+class EmptyArrayChecker(CustomCallChecker):
+    """Function call checker for the `empty_array` function.
+
+    Reports copyable element types at check time where possible. Note that explicitly
+    type-applied calls and generic instantiations bypass this checker, so the
+    restriction is also enforced by `EmptyArrayCompiler`.
+    """
+
+    def _check_elem_ty(self, inst: Inst, subst: Subst) -> None:
+        match inst:
+            case [TypeArg(ty=elem_ty), _]:
+                check_empty_array_elem_ty(elem_ty.substitute(subst), self.node)
+            case _:
+                raise InternalGuppyError("Invalid `empty_array` type args")
+
+    @override
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        args, subst, inst = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
+        self._check_elem_ty(inst, subst)
+        return with_loc(self.node, make_global_call(self.func, args, inst)), subst
+
+    @override
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        args, ty, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func
+        )
+        self._check_elem_ty(inst, {})
+        return with_loc(self.node, make_global_call(self.func, args, inst)), ty
 
 
 class ArrayIndexChecker(CustomCallChecker):

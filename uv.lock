@@ -2840,7 +2840,7 @@ wheels = [
 
 [[package]]
 name = "selene-core"
-version = "0.3.3"
+version = "0.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hugr" },
@@ -2855,41 +2855,42 @@ dependencies = [
     { name = "ziglang" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/ff/42377efce2fdf19a89fd82b887c953a8b2356a9b06d1f5a1a4bb092a8b04/selene_core-0.3.3-py3-none-any.whl", hash = "sha256:d5c78451d00f13c523d68a4e1aa3723b3a321ea9d069f10776348be84c458982", size = 40671, upload-time = "2026-10-16T15:59:08.604Z" },
+    { url = "https://files.pythonhosted.org/packages/98/d3/adc263e449855024b56b8aa6c19db775b6c32836c2fd6529aa6d2069ff82/selene_core-0.3.4-py3-none-any.whl", hash = "sha256:190e468ec72de3ef963802653def69a145dc99c0d98b82035184ba48fd871122", size = 40578, upload-time = "2026-11-13T12:23:29.006Z" },
 ]
 
 [[package]]
 name = "selene-formats"
-version = "0.1.2"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "msgpack" },
     { name = "pydantic" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/be/8f5956d40cb64e5285dc13b212539968bee96f9ed8cfe04f22955a7e5238/selene_formats-0.1.2.tar.gz", hash = "sha256:310ab7d4227017527da87390f4df6f4a05cf79b6d44fe3046a943bb83205558f", size = 43719, upload-time = "2026-10-22T15:04:03.818Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/8d/bf0168b00a0deb37d8f715a29f55e90c82ca67d4d3ec62e913a68e749967/selene_formats-0.2.0.tar.gz", hash = "sha256:3ea209aeac9f79859ee253cc226e91dda68cc712df17840c1d17c5b0fa289d06", size = 58489, upload-time = "2026-11-13T11:36:23.45Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/5c/dfe2bef457743929463ca34bc1bd2c47ae903efaafe79261403a7f52bef5/selene_formats-0.1.2-py3-none-any.whl", hash = "sha256:db983286daeffba04c2b85b86336ebed07bae37ba9f6695285e8dec889254c40", size = 12372, upload-time = "2026-10-22T15:04:02.576Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/3d/715a44a4f8aeccc89d0a83e4ed4ae67f1f2205399cea47bb6447324cc6c0/selene_formats-0.2.0-py3-none-any.whl", hash = "sha256:2a689d0d0919622efbff6948e18cb57c7294d0367d122ff164b02bada5a49220", size = 15396, upload-time = "2026-11-13T11:36:22.096Z" },
 ]
 
 [[package]]
 name = "selene-hugr-qis-compiler"
-version = "0.5.1"
+version = "0.5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hugr" },
     { name = "typing-extensions" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/b4/c6213d3bdc8ecead99c7f90b902fb8bbf56f41e0f754b1ff6a3d2f4d75e3/selene_hugr_qis_compiler-0.5.1-cp310-abi3-macosx_15_0_arm64.whl", hash = "sha256:7c2f1666ce763542934d1faa897830acbc970d722f884acef668c94b3878c0d4", size = 25168494, upload-time = "2026-10-08T11:46:08.362Z" },
-    { url = "https://files.pythonhosted.org/packages/5b/2c/9d20eb597d697a7ab6e63804fc86be5d93ea4def480e1338f0289edfa3b9/selene_hugr_qis_compiler-0.5.1-cp310-abi3-macosx_15_0_x86_64.whl", hash = "sha256:f3521a70293ef32ab76d2f456a6932542f19c3c4253cb833d5763c70a6724f7a", size = 26717526, upload-time = "2026-10-08T11:46:21.136Z" },
-    { url = "https://files.pythonhosted.org/packages/7b/4d/1ef953e8fcac7cc701115a269f73db14a79ecd4501d0aa78b17dc5755ca9/selene_hugr_qis_compiler-0.5.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:3b66aaa2fa4f2e8799f93e4f2d91aaf46bddbe42a4fa4e72e55023840ebb0afe", size = 34221894, upload-time = "2026-10-08T11:46:23.904Z" },
-    { url = "https://files.pythonhosted.org/packages/81/9c/77982a7b2610df39aa85ecfe6748c66fc7d7fa169dfebed5266c7c124137/selene_hugr_qis_compiler-0.5.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:7ecfe17bdee3eb8e0529d49ba43421d97ba0026c82cb6f6a997b2d9b3d5d664f", size = 34992711, upload-time = "2026-10-08T11:46:27.11Z" },
-    { url = "https://files.pythonhosted.org/packages/77/39/510bd57c89cc4f6675a67eb1ea1c80928f309bb9e0bee56126e81c1a775f/selene_hugr_qis_compiler-0.5.1-cp310-abi3-win_amd64.whl", hash = "sha256:3b888b63fe96c9acf2fe32b02a379daf07d314e823ba9c5d46d2461a99897258", size = 25205879, upload-time = "2026-10-08T11:46:29.993Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/59/23b544210cd554f14abbd3e52125b9097dcfabd0d3dfb638f1e656d2da46/selene_hugr_qis_compiler-0.5.2-cp310-abi3-macosx_15_0_arm64.whl", hash = "sha256:4f417327d3c71aa891e4b23f6a30341302dcacb23f800c824cb0a4ed1bacba77", size = 25250818, upload-time = "2026-11-12T18:26:47.849Z" },
+    { url = "https://files.pythonhosted.org/packages/72/ae/495e39b0337e6ba3463fc0c3157fdaccc0671e454d89dc9814fe4cb942be/selene_hugr_qis_compiler-0.5.2-cp310-abi3-macosx_15_0_x86_64.whl", hash = "sha256:a1c92f18417132067841af5a43fe98d5982e7bde73ee6e2ebce5453588b74ed8", size = 26864697, upload-time = "2026-11-12T18:26:50.552Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/ab/f670afbc0e16e95db39563d4fa614e866855faa59f8578966bd7fe64bc85/selene_hugr_qis_compiler-0.5.2-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:0ce51c1bf760e4b1076d3f59b8d01995bf96b43c2a2e166e6a05d4c2126a68fe", size = 34324680, upload-time = "2026-11-12T18:26:53.738Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/52/b10208afa5a58ac8741eb861c578e5256bfd78e1e8d584dc151feb53a019/selene_hugr_qis_compiler-0.5.2-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:a8b6bc86c832fb8279f1425b60aea7278121c32ad21d55bfd78c6edb72994945", size = 35107117, upload-time = "2026-11-12T18:26:56.991Z" },
+    { url = "https://files.pythonhosted.org/packages/23/87/fdee0444cc4f2e8dcd0546cb9c0ec5bd16185319364c59c839de2a841b58/selene_hugr_qis_compiler-0.5.2-cp310-abi3-win_amd64.whl", hash = "sha256:9ae24ea8d4fb876c0ca0e4d12b5c2272db3a0dfc1b25a457089485cbce36038c", size = 25302700, upload-time = "2026-11-12T18:27:00.022Z" },
 ]
 
 [[package]]
 name = "selene-sim"
-version = "0.3.7"
+version = "0.3.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -2899,11 +2900,11 @@ dependencies = [
     { name = "tqdm" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/5f/bc7b104837f616dfd770bf5f9eb742b7b91d06947ab3fb1c0649fc699ea7/selene_sim-0.3.7-py3-none-macosx_12_0_arm64.whl", hash = "sha256:ea114f3e80cdad55646b2e1eebc4bb2777de723ffffdc2151c5f529f72beb6ee", size = 21397494, upload-time = "2026-10-20T13:07:32.911Z" },
-    { url = "https://files.pythonhosted.org/packages/eb/8a/b6809fd7c7376aea668880e0d24c6ef5484ab49880fc4cfbb5463abb475a/selene_sim-0.3.7-py3-none-macosx_12_0_x86_64.whl", hash = "sha256:1c190dc51458d6d97a09cf2cde349c57106a6f8704a1caf6e9e64f624339b887", size = 22068752, upload-time = "2026-10-20T13:07:36.505Z" },
-    { url = "https://files.pythonhosted.org/packages/9c/ef/00ff49b238510958e3bc2b5405611a6704c6d4c0541f7d131f371c561eb1/selene_sim-0.3.7-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:815725c3cb410428752eed2259eb9ade28ef4e6d2456951cd3a3c4649c9fa760", size = 8455522, upload-time = "2026-10-20T13:07:39.106Z" },
-    { url = "https://files.pythonhosted.org/packages/93/54/7c934a4545c6caa63ef5872dfba52699f185dcde1858b576e83b71a15e18/selene_sim-0.3.7-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:76629a0de4568ec092739e40b95fbdf469b0cd4ac205b607784f3c0e507bba20", size = 8789894, upload-time = "2026-10-20T13:07:41.884Z" },
-    { url = "https://files.pythonhosted.org/packages/f4/50/25d9a438fc739d3b2080520ddef8a543ec77491c7ae377150b5602498cf4/selene_sim-0.3.7-py3-none-win_amd64.whl", hash = "sha256:db51b04268be40d61c72f9b0ba5148b398184fe1045045e98721521b9144b080", size = 14288920, upload-time = "2026-10-20T13:07:44.657Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/e5/8d2d76e534b40926ce1d478fb35533e41409baa5f81a642752813ac603e4/selene_sim-0.3.8-py3-none-macosx_12_0_arm64.whl", hash = "sha256:f13b55949e650fe878af67d692bc6edb4e71ad1c042591ce5679ef43b6d60a56", size = 21419682, upload-time = "2026-11-13T12:54:37.621Z" },
+    { url = "https://files.pythonhosted.org/packages/14/90/5affc3e5fbbe20c961b12bb72389631c91a644d4c3dbfc546d7a8ddba451/selene_sim-0.3.8-py3-none-macosx_12_0_x86_64.whl", hash = "sha256:978efb53dd011d91f71f6ad9461d2b24d9153d0eae6de64dee0b6f053070b51f", size = 22088867, upload-time = "2026-11-13T12:54:40.16Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/b2/3c1d71d9a32f9d0bf2c3e76c3299f8c2aa95817d03c1dc79cd49ed60e170/selene_sim-0.3.8-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:baa6aba0e312b4ff536b2a18980eccb63927dbf34e4ebbb54c58da34cfa9d0b6", size = 8461611, upload-time = "2026-11-13T12:54:42.27Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/b8/935839331c7bf834bb3788ff28de8f5d5c4b7ed8fc396e3770eb120a5570/selene_sim-0.3.8-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:b680255c3c38aeb8ce3d88b2f18fcf52574eb0c328d02a1eee02844c3906a273", size = 8800839, upload-time = "2026-11-13T12:54:44.267Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/21/d282941c4d5e6b96d12721b9799eed10324bbb282e800b74fccaccc9c771/selene_sim-0.3.8-py3-none-win_amd64.whl", hash = "sha256:b25e8ddb5091b27061313b20eb576fd893d5ae7fb12c89b55f2cbbe72934cb9c", size = 14302984, upload-time = "2026-11-13T12:54:46.233Z" },
 ]
 
 [[package]]
@@ -2962,11 +2963,11 @@ wheels = [
 
 [[package]]
 name = "soupsieve"
-version = "2.8.4"
+version = "4.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/47/2c/0a5f6f8ee0d5589e48c7640213ed5175d52cf540a06725b628cc1a45d6ce/soupsieve-2.8.4.tar.gz", hash = "sha256:e121fd02e975c695e4e9e8774a5ee35d74714b59307868dcc5319ad2d9e3328e", size = 121110, upload-time = "2026-05-24T13:55:57.154Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/5e/19b7c5d20bc2f226c44f33a9d9aab9740efed7555b96e656231fd564e514/soupsieve-4.0.tar.gz", hash = "sha256:ccd6470b256394ac44b08b86fd94b30a17d335a5335c8a3d15565f7b03d3c8cf", size = 151929, upload-time = "2026-11-03T14:28:55.388Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/f5/0c41cb68dcae6b7de4fac4188a3a9589e21fb31df21ea3a2e888db95e6c9/soupsieve-2.8.4-py3-none-any.whl", hash = "sha256:e7e6b0769c8f51ed59acab6e994b00621096cfb1c640a7509295987388fbaf65", size = 37304, upload-time = "2026-05-24T13:55:55.406Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/18/d24df2f733ee0655c58717d51add4118a70e64692d0e47d403b9aac4cf98/soupsieve-4.0-py3-none-any.whl", hash = "sha256:5e7494bfce90e06676cfb4c5c2cf22243e98e5cf24646bb1ecdda46d318550a0", size = 50158, upload-time = "2026-11-03T14:28:53.988Z" },
 ]
 
 [[package]]
@@ -3183,20 +3184,20 @@ wheels = [
 
 [[package]]
 name = "types-networkx"
-version = "3.6.1.20261024"
+version = "3.6.1.20261108"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/51/6a/f6ff53269f24a2cb2480b768e8bcf31a7d74f5446811fb088c5e35782684/types_networkx-3.6.1.20261024.tar.gz", hash = "sha256:8dc85c36358819e9c6683604b404949f41e5e3ae9bb57a98c695f38a827e402d", size = 76912, upload-time = "2026-10-24T06:36:32.942Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/f7/b33661a0e91a47c19ba667d4610518f0117d8631ba68ee06b26fa3b0ff92/types_networkx-3.6.1.20261108.tar.gz", hash = "sha256:673f5d2e181749a39d3ef4c4dd045d47ad1a132b8a732748d44c753d2ae42c16", size = 77223, upload-time = "2026-11-08T08:12:50.198Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/20/eeeae3baadd8ca9b2d795063eab50b9c32b01899e5437b02011cae53a5d7/types_networkx-3.6.1.20261024-py3-none-any.whl", hash = "sha256:b193b28155eed511acee02d61e66a06f5a6b4194a0dc0f4d0215c859c9c23319", size = 167427, upload-time = "2026-10-24T06:36:31.393Z" },
+    { url = "https://files.pythonhosted.org/packages/52/f2/644357ef6e7333c4aba0c9ba733f885a18518790bdace45beae219578bbd/types_networkx-3.6.1.20261108-py3-none-any.whl", hash = "sha256:6a1c168c311e0bb17033302aca3ce1ac280b41198e1532a591091b74513dc2b5", size = 167590, upload-time = "2026-11-08T08:12:49.206Z" },
 ]
 
 [[package]]
 name = "types-tqdm"
-version = "4.70.0.20260906"
+version = "4.70.0.20261106"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/92/517d71d5a399cd2f8ead3b4328d987262478f22fbbe7f8312360d4c321d0/types_tqdm-4.70.0.20260906.tar.gz", hash = "sha256:6581dc996152a87d51ce2ea169169187ffc0a96dacdb8adbdef29cbee8c1e631", size = 19309, upload-time = "2026-09-06T06:35:31.916Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/c7/742d7c26986dfa2afb88f208f3439d6f7bff7270c5aec42d71623415a4a3/types_tqdm-4.70.0.20261106.tar.gz", hash = "sha256:4e0b61731624c8430e60ded705ea4f4270c37a9263d19d69946375a522ef9e79", size = 19601, upload-time = "2026-11-06T08:40:25.742Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/ea/d12697988ab2c672877796ecaea69666e2379ee7b40f01f4540250d5a97b/types_tqdm-4.70.0.20260906-py3-none-any.whl", hash = "sha256:c3b88c694928515d601f73fa6646aa43adc0ef735bedbeebf0cc543f6a201ae8", size = 25181, upload-time = "2026-09-06T06:35:30.931Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/53/a581c64cc05ccbfd8077145913f63eac6b087b15129fdae583d2c6eff546/types_tqdm-4.70.0.20261106-py3-none-any.whl", hash = "sha256:4ba3eeea27ca863522c4814c5c6954b83d51bbdec8056214e0dddc132f5964d5", size = 25317, upload-time = "2026-11-06T08:40:24.81Z" },
 ]
 
 [[package]]

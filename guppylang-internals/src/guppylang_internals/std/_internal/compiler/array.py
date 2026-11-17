@@ -9,10 +9,11 @@ from hugr import Wire
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
+from guppylang_internals.checker.errors.type_errors import EmptyArrayCopyableError
 from guppylang_internals.compiler.builder import OpWithEffects, pure
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
-from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.error import GuppyTypeError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.prelude import build_unwrap_right
 from guppylang_internals.tys import Effect
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 
     from guppylang_internals.ast_util import AstNode
     from guppylang_internals.compiler.builder import DFBuilder
+    from guppylang_internals.tys.ty import Type
 
 
 # ------------------------------------------------------
@@ -482,6 +484,33 @@ class ArraySetitemCompiler(ArrayCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
+
+
+def check_empty_array_elem_ty(elem_ty: Type, node: AstNode | None) -> None:
+    """Raises an error if `empty_array` is instantiated with a copyable element type.
+
+    Only non-copyable element types are supported to preserve the assumption that
+    copyable elements are always present.
+    """
+    if elem_ty.copyable:
+        err = EmptyArrayCopyableError(node, elem_ty)
+        err.add_sub_diagnostic(EmptyArrayCopyableError.Explanation(None))
+        raise GuppyTypeError(err)
+
+
+class EmptyArrayCompiler(ArrayCompiler):
+    """Compiler for the `empty_array` function.
+
+    The element type restriction is checked here rather than only in
+    `EmptyArrayChecker`, because explicitly type-applied calls and generic
+    instantiations bypass the custom checker.
+    """
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        [elem_ty_arg, _] = self.type_args
+        assert isinstance(elem_ty_arg, TypeArg)
+        check_empty_array_elem_ty(elem_ty_arg.ty, self.node)
+        return [self.builder.add_op(barray_new_all_borrowed(self.elem_ty, self.length))]
 
 
 class ArrayDiscardAllUsedCompiler(ArrayCompiler):
