@@ -1,0 +1,9 @@
+Error: Protocol member implementation missing (at $FILE:18:17)
+   | 
+16 | @guppy
+17 | def main() -> bool:
+18 |     return apply(BadCallable(42))
+   |                  ^^^^^^^^^^^^^^^ Type `BadCallable` does not have required method `__call__`
+   |                                  of protocol `Callable`
+
+Guppy compilation failed due to 1 previous error

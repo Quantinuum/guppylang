@@ -2,6 +2,9 @@ from collections.abc import Callable
 
 from guppylang.decorator import guppy
 from guppylang.std.lang import Function
+from guppylang import qubit
+from guppylang.std.builtins import owned
+from guppylang.std.quantum import measure
 
 
 def test_function_is_callable(validate):
@@ -120,3 +123,77 @@ def test_nested(validate):
         return call(add) + call(sub)
 
     validate(main.compile_function())
+
+
+def test_dunder_callable(validate):
+    @guppy.struct(frozen=True)
+    class Counter:
+        value: int
+
+        @guppy
+        def __call__(self, increment: int) -> int:
+            return self.value + increment
+
+    @guppy
+    def twice(f: Callable[[int], int]) -> int:
+        first = f(2)
+        return first + f(3)
+
+    @guppy
+    def main() -> int:
+        counter = Counter(10)
+        inferred = counter(1)
+        checked: int = counter(1)
+        return inferred + checked + twice(counter) + counter.value
+
+    validate(main.compile())
+
+
+def test_dunder_callable_return_rows(validate):
+    @guppy.struct(frozen=True)
+    class NoResult:
+        @guppy
+        def __call__(self) -> None:
+            pass
+
+    @guppy.struct(frozen=True)
+    class Pair:
+        value: int
+
+        @guppy
+        def __call__(self) -> tuple[int, bool]:
+            return self.value, True
+
+    @guppy
+    def call_none(f: Callable[[], None]) -> None:
+        f()
+
+    @guppy
+    def call_pair(f: Callable[[], tuple[int, bool]]) -> tuple[int, bool]:
+        return f()
+
+    @guppy
+    def main() -> int:
+        call_none(NoResult())
+        value, flag = call_pair(Pair(42))
+        return value if flag else 0
+
+    validate(main.compile())
+
+
+def test_dunder_callable_owned(validate):
+    @guppy.struct(frozen=True)
+    class Measure:
+        @guppy
+        def __call__(self, q: qubit @ owned) -> bool:
+            return bool(measure(q))
+
+    @guppy
+    def apply(f: Callable[[qubit @ owned], bool], q: qubit @ owned) -> bool:
+        return f(q)
+
+    @guppy
+    def main() -> bool:
+        return apply(Measure(), qubit())
+
+    validate(main.compile())

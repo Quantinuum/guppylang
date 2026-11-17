@@ -17,7 +17,10 @@ from guppylang_internals.checker.errors.type_errors import (
 from guppylang_internals.definition.common import CompiledDef, DefId
 from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import (
+    GuppyError,
+    InternalGuppyError,
+)
 from guppylang_internals.experimental import check_lists_enabled
 from guppylang_internals.span import ToSpan
 from guppylang_internals.std._internal.compiler.tket_exts import WASM_EXTENSION
@@ -31,8 +34,10 @@ from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.subst import Substituter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    FuncInput,
     FunctionDefType,
     FunctionType,
+    InputFlags,
     NoneType,
     NumericType,
     OpaqueType,
@@ -223,6 +228,8 @@ class CallableProtocolInst(ProtocolInst):
         from guppylang_internals.checker.protocol_checker import (
             AssumptionImplProof,
             ConcreteImplProof,
+            check_protocol_member_implemented,
+            check_protocol_solved,
         )
 
         if isinstance(ty, FunctionDefType):
@@ -232,10 +239,9 @@ class CallableProtocolInst(ProtocolInst):
             assert not ty.parametrized
             sig = ty if isinstance(ty, FunctionType) else ty.sig
             subst = unify(self.sig, sig, {})
-            if subst is not None:
-                return ConcreteImplProof(
-                    self.transform(Substituter(subst)), ty, {}
-                ), subst
+            if subst is None:
+                raise GuppyError(DoesntImplementProtocol(loc, str(ty), str(self)))
+            return ConcreteImplProof(self.transform(Substituter(subst)), ty, {}), subst
 
         elif isinstance(ty, BoundTypeVar):
             for protocol in ty.implements:
@@ -243,8 +249,33 @@ class CallableProtocolInst(ProtocolInst):
                     subst = unify(self.sig, protocol.sig, {})
                     if subst is not None:
                         return AssumptionImplProof(self, ty), subst
+            raise GuppyError(DoesntImplementProtocol(loc, str(ty), str(self)))
 
-        raise GuppyError(DoesntImplementProtocol(loc, str(ty), str(self)))
+        # Otherwise, fall back to the standard protocol checking algorithm to check if
+        # the type implements `__call__`.
+        self_param = TypeParam(
+            0,
+            "Self",
+            # `Callable` has an implicit `Copy, Drop` bound
+            must_be_copyable=True,
+            must_be_droppable=True,
+            must_implement=[self],
+        )
+        call_sig = FunctionType(
+            inputs=[
+                FuncInput(self_param.to_bound(0).ty, InputFlags.NoFlags),
+                *self.sig.inputs,
+            ],
+            output=self.sig.output,
+            params=[self_param],
+        )
+        impl, subst = check_protocol_member_implemented(
+            ty, self, callable_protocol_def, "__call__", call_sig, False, {}, loc
+        )
+        subst = check_protocol_solved(self, callable_protocol_def, subst, loc)
+        return ConcreteImplProof(
+            self.transform(Substituter(subst)), ty, {"__call__": impl}
+        ), subst
 
     def __str__(self) -> str:
         inputs = ", ".join(str(inp.ty) for inp in self.sig.inputs)

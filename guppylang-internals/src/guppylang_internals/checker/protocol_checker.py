@@ -138,57 +138,88 @@ def check_protocol(
             new_ty,
         ), subst
 
+    # Otherwise, check that all required protocol methods are implemented
     subst = {}
     member_impls: dict[str, tuple[DefId, Inst]] = {}
     for name in protocol_def.member_defs:
         proto_sig = protocol_def.member_sig(name)
-        if len(proto_sig.inputs) > 0 and not ENGINE.is_def_static(
-            protocol_def.member_defs[name]
-        ):  # staticmethods assumed not to have a self arg
-            if isinstance(proto_sig.inputs[0].ty, BoundTypeVar):
-                proto_sig = _instantiate_self(proto_sig, protocol, ty)
-            else:
-                raise GuppyError(FirstArgNotProtocol(None, protocol_def.name))
-        func = ENGINE.get_instance_func(ty, name)
-        if not func:
-            loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name]).defined_at
-            raise GuppyError(
-                ProtocolMemberMissing(
-                    loc,
-                    impl_name=str(ty),
-                    proto_name=protocol_def.name,
-                    member_name=name,
-                )
-            )
-        # Make type variables in implementation signature existential for unification.
-        impl_sig, ex_impl_vars = func.ty.unquantified()
-        # Make parameters in protocol signature unbound for unification.
-        proto_sig = FunctionType(proto_sig.inputs, proto_sig.output, params=[])
-        # Try to unify both signatures.
-        subst = unify(proto_sig, impl_sig, subst)
-        if subst is None:
-            err = SignatureDoesntMatchProto(loc, name)
-            err.add_sub_diagnostic(
-                SignatureDoesntMatchProto.SigMismatch(
-                    None, protocol, proto_sig, impl_sig
-                )
-            )
-            raise GuppyError(err)
-        if any(x not in subst for x in ex_impl_vars):
-            err = CouldntInferProtoArgs(loc, protocol_def.name)
-            bad_args = [arg for arg in ex_impl_vars if arg not in subst]
-            for arg in bad_args:
-                err.add_sub_diagnostic(
-                    CouldntInferProtoArgs.UnresolvedArg(None, str(arg))
-                )
-            raise GuppyError(err)
-        # Turn these into type vars
-        impl_vars: Inst = tuple(subst[var].to_arg() for var in ex_impl_vars)
-        member_impls[name] = func.id, impl_vars
-
-    if any(x not in subst for arg in protocol.type_args for x in arg.unsolved_vars):
-        raise GuppyError(CouldntInferProtoArgs(loc, protocol_def.name))
-    subst = {x: subst[x] for arg in protocol.type_args for x in arg.unsolved_vars}
+        is_static = ENGINE.is_def_static(protocol_def.member_defs[name])
+        loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name]).defined_at
+        if not is_static and (
+            not proto_sig.inputs or not isinstance(proto_sig.inputs[0].ty, BoundTypeVar)
+        ):
+            raise GuppyError(FirstArgNotProtocol(None, protocol_def.name))
+        member_impls[name], subst = check_protocol_member_implemented(
+            ty, protocol, protocol_def, name, proto_sig, is_static, subst, loc
+        )
+    subst = check_protocol_solved(protocol, protocol_def, subst, loc)
     return ConcreteImplProof(
         protocol.transform(Substituter(subst)), ty, member_impls
     ), subst
+
+
+def check_protocol_member_implemented(
+    ty: Type,
+    protocol: ProtocolInst,
+    protocol_def: CheckedProtocolDef,
+    name: str,
+    proto_sig: FunctionType,
+    is_static: bool,
+    subst: Subst,
+    loc: ToSpan | None,
+) -> tuple[tuple[DefId, Inst], Subst]:
+    """Checks that a type implements a single member required by a protocol.
+
+    The returned substitution may contain solutions for existential variables in
+    `protocol` that could be inferred.
+    """
+    if not is_static:
+        proto_sig = _instantiate_self(proto_sig, protocol, ty)
+
+    func = ENGINE.get_instance_func(ty, name)
+    if not func:
+        raise GuppyError(
+            ProtocolMemberMissing(
+                loc,
+                impl_name=str(ty),
+                proto_name=protocol_def.name,
+                member_name=name,
+            )
+        )
+    # Make type variables in implementation signature existential for unification.
+    impl_sig, ex_impl_vars = func.ty.unquantified()
+    # Make parameters in protocol signature unbound for unification.
+    proto_sig = FunctionType(proto_sig.inputs, proto_sig.output, params=[])
+    # Try to unify both signatures.
+    subst = unify(proto_sig, impl_sig, subst)
+    if subst is None:
+        err = SignatureDoesntMatchProto(loc, name)
+        err.add_sub_diagnostic(
+            SignatureDoesntMatchProto.SigMismatch(None, protocol, proto_sig, impl_sig)
+        )
+        raise GuppyError(err)
+    if any(x not in subst for x in ex_impl_vars):
+        err = CouldntInferProtoArgs(loc, protocol_def.name)
+        bad_args = [arg for arg in ex_impl_vars if arg not in subst]
+        for arg in bad_args:
+            err.add_sub_diagnostic(CouldntInferProtoArgs.UnresolvedArg(None, str(arg)))
+        raise GuppyError(err)
+    # Turn these into type vars
+    impl_vars: Inst = tuple(subst[var].to_arg() for var in ex_impl_vars)
+    return (func.id, impl_vars), subst
+
+
+def check_protocol_solved(
+    protocol: ProtocolInst,
+    protocol_def: CheckedProtocolDef,
+    subst: Subst,
+    loc: ToSpan | None,
+) -> Subst:
+    """Checks that the given substitution solves all existential variables in
+    `protocol`.
+
+    Returns a substitution restricted to only those variables.
+    """
+    if any(x not in subst for arg in protocol.type_args for x in arg.unsolved_vars):
+        raise GuppyError(CouldntInferProtoArgs(loc, protocol_def.name))
+    return {x: subst[x] for arg in protocol.type_args for x in arg.unsolved_vars}
