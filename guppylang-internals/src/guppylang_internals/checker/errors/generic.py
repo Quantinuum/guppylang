@@ -76,32 +76,6 @@ class UnknownModifierError(Error):
 
 
 @dataclass(frozen=True)
-class ReassignedInPowerError(Error):
-    title: ClassVar[str] = "Variable used after assignment in a power block"
-    span_label: ClassVar[str] = (
-        "`{var}` would be used after assignment in a subsequent iteration"
-    )
-    var: str
-
-    @dataclass(frozen=True)
-    class AssignedHere(Note):
-        span_label: ClassVar[str] = "variable assigned here"
-
-    @dataclass(frozen=True)
-    class Power(Note):
-        span_label: ClassVar[str] = "power modifier is used here"
-
-    @dataclass(frozen=True)
-    class Explanation(Help):
-        message: ClassVar[str] = (
-            "Variables assigned inside a modifier block are not available outside "
-            "that block, including in subsequent iterations of a power block. "
-            "Assign the variable before reading it in each iteration, or use a "
-            "different name for the assignment."
-        )
-
-
-@dataclass(frozen=True)
 class RecursiveModifierControlCountError(Error):
     title: ClassVar[str] = "Increasing control count in recursive custom modifier"
     span_label: ClassVar[str] = (

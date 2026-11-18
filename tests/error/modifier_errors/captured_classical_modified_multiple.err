@@ -5,11 +5,15 @@ Error: Variable assigned in modifier block (at $FILE:13:11)
 13 |     return x + y
    |            ^ `x` cannot be used...
 
-Note:
+Notes:
    | 
 10 |         with power(3):
 11 |             x += 1
    |             ------ ... since it was assigned in a modifier block
+
+ 9 |     with control(q):
+10 |         with power(3):
+   |              -------- modifier is used here
 
 Help: Variables assigned inside a modifier block are not available outside the
 block

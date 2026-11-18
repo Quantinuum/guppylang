@@ -1,19 +1,19 @@
-Error: Variable used after assignment in a power block (at $FILE:9:12)
+Error: Variable assigned in modifier block (at $FILE:9:12)
   | 
 7 |     with power(2):  # noqa: SIM117
 8 |         with control(q):
 9 |             x += 1
-  |             ^ `x` would be used after assignment in a subsequent iteration
+  |             ^ `x` cannot be used...
 
 Notes:
   | 
 8 |         with control(q):
 9 |             x += 1
-  |             ------ variable assigned here
+  |             ------ ... since it was assigned in a modifier block
 
 6 | def test(q: qubit, x: int) -> None:
 7 |     with power(2):  # noqa: SIM117
-  |          -------- power modifier is used here
+  |          -------- modifier is used here
 
 Help: Variables assigned inside a modifier block are not available outside that
 block, including in subsequent iterations of a power block. Assign the variable

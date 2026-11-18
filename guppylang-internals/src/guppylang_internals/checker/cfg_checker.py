@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from guppylang_internals.ast_util import line_col
-from guppylang_internals.cfg.bb import BB
+from guppylang_internals.cfg.bb import BB, ModifierAssignment
 from guppylang_internals.cfg.builder import is_tmp_var
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
@@ -35,6 +35,7 @@ from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
+from guppylang_internals.nodes import ModifiedBlock
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import (
     FunctionDefType,
@@ -93,7 +94,7 @@ def check_cfg(
     globals: Globals,
     current_caller: MonoDefId,
     modifier_ctx: ModifierContext = NO_CALL_MODIFIERS,
-    first_modifier_node: ast.expr | None = None,
+    modified_block: ModifiedBlock | None = None,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,
 ) -> CheckedCFG[Place]:
@@ -107,8 +108,8 @@ def check_cfg(
     Note that the resulting types will all be monomorphic - generic parameters will
     be instantiated to the provided `generic_args`.
 
-    `first_modifier_node`: if None, the cfg is not a modifier block.
-    Otherwise, it's the AST node of the first modifier, used in error reporting.
+    `modified_block`: the enclosing modifier block, if any, used to check captured
+    variable reassignments and report errors.
     """
 
     if modified_block_counter is None:
@@ -120,6 +121,7 @@ def check_cfg(
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
     cfg.analyze(ass_before, ass_before, [v.name for v in inout_vars])
+    captured_live_names = ass_before & cfg.live_before[cfg.entry_bb].keys()
 
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
@@ -134,6 +136,8 @@ def check_cfg(
         modified_block_counter,
         current_caller=current_caller,
         modifier_ctx=modifier_ctx,
+        modified_block=modified_block,
+        captured_live_names=captured_live_names,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -170,6 +174,8 @@ def check_cfg(
                 modified_block_counter,
                 current_caller=current_caller,
                 modifier_ctx=modifier_ctx,
+                modified_block=modified_block,
+                captured_live_names=captured_live_names,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -206,7 +212,12 @@ def check_cfg(
     from guppylang_internals.checker.linearity_checker import check_cfg_linearity
 
     linearity_checked_cfg = check_cfg_linearity(
-        checked_cfg, func_name, globals, first_modifier_node=first_modifier_node
+        checked_cfg,
+        func_name,
+        globals,
+        first_modifier_node=(
+            modified_block.first_modifier_node if modified_block is not None else None
+        ),
     )
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
@@ -297,10 +308,23 @@ class AssignedInModifierError(Error):
         span_label: ClassVar[str] = "... since it was assigned in a modifier block"
 
     @dataclass(frozen=True)
-    class Explanation(Help):
+    class Modifier(Note):
+        span_label: ClassVar[str] = "modifier is used here"
+
+    @dataclass(frozen=True)
+    class GenericExplanation(Help):
         message: ClassVar[str] = (
             "Variables assigned inside a modifier block are not available"
             " outside the block"
+        )
+
+    @dataclass(frozen=True)
+    class PowerExplanation(Help):
+        message: ClassVar[str] = (
+            "Variables assigned inside a modifier block are not available outside "
+            "that block, including in subsequent iterations of a power block. "
+            "Assign the variable before reading it in each iteration, or use a "
+            "different name for the assignment."
         )
 
 
@@ -315,8 +339,35 @@ def check_bb(
     modified_block_counter: Iterator[int],
     current_caller: MonoDefId,
     modifier_ctx: ModifierContext,
+    modified_block: ModifiedBlock | None,
+    captured_live_names: set[str],
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
+
+    if modified_block is not None and modified_block.has_power():
+        # An incoming value read before assignment would be needed again in the
+        # next iteration. Assignments that only shadow unused inputs are fine.
+        assignments = (
+            bb.vars.assigned_in_modifier_block.keys() | bb.vars.assigned.keys()
+        )
+        reassigned = captured_live_names & assignments
+        if reassigned:
+            var = min(reassigned)
+            use = cfg.live_before[cfg.entry_bb][var].vars.used[var]
+            assignment_node = (
+                bb.vars.assigned[var]
+                if var in bb.vars.assigned
+                else bb.vars.assigned_in_modifier_block[var].assignment
+            )
+            power_err = AssignedInModifierError(use, var)
+            power_err.add_sub_diagnostic(
+                AssignedInModifierError.AssignedHere(assignment_node)
+            )
+            power_err.add_sub_diagnostic(
+                AssignedInModifierError.Modifier(modified_block.power[0])
+            )
+            power_err.add_sub_diagnostic(AssignedInModifierError.PowerExplanation(None))
+            raise GuppyError(power_err)
 
     # For the entry BB we have to separately check that all used variables are
     # defined. For all other BBs, this will be checked when compiling a predecessor.
@@ -414,11 +465,12 @@ def check_bb(
 
 
 def _assigned_in_modifier_error(
-    var: str, use: ast.AST, assignment: ast.AST
+    var: str, use: ast.AST, assignment: ModifierAssignment
 ) -> AssignedInModifierError:
     err = AssignedInModifierError(use, var)
-    err.add_sub_diagnostic(AssignedInModifierError.AssignedHere(assignment))
-    err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
+    err.add_sub_diagnostic(AssignedInModifierError.AssignedHere(assignment.assignment))
+    err.add_sub_diagnostic(AssignedInModifierError.Modifier(assignment.modifier))
+    err.add_sub_diagnostic(AssignedInModifierError.GenericExplanation(None))
     return err
 
 

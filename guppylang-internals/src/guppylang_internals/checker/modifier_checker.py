@@ -15,11 +15,10 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
-from guppylang_internals.checker.errors.generic import ReassignedInPowerError
 from guppylang_internals.checker.linearity_checker import parent_places
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.nodes import (
     CheckedModifiedBlock,
     ComptimeExpr,
@@ -52,27 +51,7 @@ def check_modified_block(
     def_ass_before = ctx.locals.keys()
     maybe_ass_before = def_ass_before | parent_cfg.maybe_ass_before[bb]
 
-    stats = cfg.analyze(def_ass_before, maybe_ass_before, [])
-
-    if modified_block.has_power():
-        # An incoming value read before assignment would be needed again in the
-        # next iteration. Assignments that only shadow unused inputs are fine.
-        live_at_entry = cfg.live_before[cfg.entry_bb]
-        for body_stats in stats.values():
-            assignments = body_stats.assigned_in_modifier_block | body_stats.assigned
-            reassigned = def_ass_before & live_at_entry.keys() & assignments.keys()
-            if reassigned:
-                var = min(reassigned)
-                use = live_at_entry[var].vars.used[var]
-                err = ReassignedInPowerError(use, var)
-                err.add_sub_diagnostic(
-                    ReassignedInPowerError.AssignedHere(assignments[var])
-                )
-                err.add_sub_diagnostic(
-                    ReassignedInPowerError.Power(modified_block.power[0])
-                )
-                err.add_sub_diagnostic(ReassignedInPowerError.Explanation(None))
-                raise GuppyError(err)
+    cfg.analyze(def_ass_before, maybe_ass_before, [])
 
     # If the body only accesses some fields of a struct or elements of a tuple, we
     # capture those instead of the whole value. This allows, for example, using one
@@ -122,8 +101,7 @@ def check_modified_block(
         globals,
         current_caller=ctx.current_caller,
         modifier_ctx=ctx.modifier_ctx,
-        # We pass the first modifier node for better error messages in the cfg checker
-        first_modifier_node=modified_block.first_modifier_node,
+        modified_block=modified_block,
         modified_block_name_base=ctx.modified_block_name_base,
         modified_block_counter=ctx.modified_block_counter,
     )
