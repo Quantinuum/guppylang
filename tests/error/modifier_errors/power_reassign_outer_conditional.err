@@ -15,8 +15,8 @@ Notes:
  7 |     with power(2):
    |          -------- modifier is used here
 
-Help: Variables assigned inside a modifier block are not available outside that
-block, including in subsequent iterations of a power block. Assign the variable
-before reading it in each iteration, or use a different name for the assignment.
+Help: Variables assigned in a power block are not available in subsequent
+iterations of that block. Assign the variable before reading it in each
+iteration, or use a different name for the assignment.
 
 Guppy compilation failed due to 1 previous error

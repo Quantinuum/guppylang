@@ -321,10 +321,9 @@ class AssignedInModifierError(Error):
     @dataclass(frozen=True)
     class PowerExplanation(Help):
         message: ClassVar[str] = (
-            "Variables assigned inside a modifier block are not available outside "
-            "that block, including in subsequent iterations of a power block. "
-            "Assign the variable before reading it in each iteration, or use a "
-            "different name for the assignment."
+            "Variables assigned in a power block are not available in subsequent "
+            "iterations of that block. Assign the variable before reading it in each "
+            "iteration, or use a different name for the assignment."
         )
 
 
@@ -343,31 +342,6 @@ def check_bb(
     captured_live_names: set[str],
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
-
-    if modified_block is not None and modified_block.has_power():
-        # An incoming value read before assignment would be needed again in the
-        # next iteration. Assignments that only shadow unused inputs are fine.
-        assignments = (
-            bb.vars.assigned_in_modifier_block.keys() | bb.vars.assigned.keys()
-        )
-        reassigned = captured_live_names & assignments
-        if reassigned:
-            var = min(reassigned)
-            use = cfg.live_before[cfg.entry_bb][var].vars.used[var]
-            assignment_node = (
-                bb.vars.assigned[var]
-                if var in bb.vars.assigned
-                else bb.vars.assigned_in_modifier_block[var].assignment
-            )
-            power_err = AssignedInModifierError(use, var)
-            power_err.add_sub_diagnostic(
-                AssignedInModifierError.AssignedHere(assignment_node)
-            )
-            power_err.add_sub_diagnostic(
-                AssignedInModifierError.Modifier(modified_block.power[0])
-            )
-            power_err.add_sub_diagnostic(AssignedInModifierError.PowerExplanation(None))
-            raise GuppyError(power_err)
 
     # For the entry BB we have to separately check that all used variables are
     # defined. For all other BBs, this will be checked when compiling a predecessor.
@@ -440,6 +414,31 @@ def check_bb(
                         x, use_bb.vars.used[x], bb.vars.assigned_in_modifier_block[x]
                     )
                 )
+
+    if modified_block is not None and modified_block.has_power():
+        # An incoming value read before assignment would be needed again in the
+        # next iteration. Assignments that only shadow unused inputs are fine.
+        assignments = (
+            bb.vars.assigned_in_modifier_block.keys() | bb.vars.assigned.keys()
+        )
+        reassigned = captured_live_names & assignments
+        if reassigned:
+            var = min(reassigned)
+            use = cfg.live_before[cfg.entry_bb][var].vars.used[var]
+            assignment_node = (
+                bb.vars.assigned[var]
+                if var in bb.vars.assigned
+                else bb.vars.assigned_in_modifier_block[var].assignment
+            )
+            power_err = AssignedInModifierError(use, var)
+            power_err.add_sub_diagnostic(
+                AssignedInModifierError.AssignedHere(assignment_node)
+            )
+            power_err.add_sub_diagnostic(
+                AssignedInModifierError.Modifier(modified_block.power[0])
+            )
+            power_err.add_sub_diagnostic(AssignedInModifierError.PowerExplanation(None))
+            raise GuppyError(power_err)
 
     # Finally, we need to compute the signature of the basic block
     outputs = [
