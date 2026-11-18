@@ -39,14 +39,36 @@ class ConcreteCustomUse:
     control_count: int | None
 
 
+@dataclass(frozen=True)
+class ModifierCallState:
+    """A function invocation with modifiers inherited from its caller."""
+
+    function: MonoDefId
+    inherited_context: ModifierContext
+
+
+@dataclass(frozen=True)
+class ResolvedCustomCall:
+    """A contextual call edge resolved to a concrete custom implementation."""
+
+    caller: ModifierCallState
+    callee: ModifierCallState
+    custom_use: ConcreteCustomUse
+    call: Span
+
+
 @dataclass(frozen=True, init=False)
 class ModifierAnalysisResult:
     """An immutable snapshot of program dependencies and custom modifier uses after
     modifier analysis.
 
-    Call rows record unique callees without ordering. Load rows record function-value
-    dependencies, which do not contribute to call components or effect propagation.
-    ``custom_uses_by_mono_def`` maps custom definition IDs to concrete modifier uses.
+    Attributes:
+        call_graph: Maps each caller to its unique, unordered callees after modifier
+            resolution.
+        load_graph: Maps each function to the functions it loads as values. These
+            dependencies do not contribute to call components or effect propagation.
+        custom_uses_by_mono_def: Maps custom definition ``MonoDefId`` values to their
+            concrete modifier uses.
     """
 
     call_graph: Mapping[MonoDefId, frozenset[MonoDefId]]
@@ -78,24 +100,6 @@ class ModifierAnalysisResult:
             "custom_uses_by_mono_def",
             MappingProxyType(dict(custom_uses_by_mono_def)),
         )
-
-
-@dataclass(frozen=True)
-class ModifierCallState:
-    """A function invocation with modifiers inherited from its caller."""
-
-    function: MonoDefId
-    inherited_context: ModifierContext
-
-
-@dataclass(frozen=True)
-class ResolvedCustomCall:
-    """A contextual call edge resolved to a concrete custom implementation."""
-
-    caller: ModifierCallState
-    callee: ModifierCallState
-    custom_use: ConcreteCustomUse
-    call: Span
 
 
 ResolveModifiedCall = Callable[

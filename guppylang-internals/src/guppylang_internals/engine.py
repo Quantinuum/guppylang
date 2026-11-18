@@ -401,9 +401,6 @@ class CompilationEngine:
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
         """Records a function-value dependency, without propagating call effects."""
         self.assert_stage(CompilationStage.CHECK, "update call information")
-        assert self.analyzed_graph is None, (
-            "Call information must not change after analysis"
-        )
         self.call_info.load_graph[owner].add(target)
 
     def register_call(
@@ -416,9 +413,6 @@ class CompilationEngine:
         """Registers a function call in the call graph. If the callee is a
         `CallableEffects` then also registers those effects for that callee."""
         self.assert_stage(CompilationStage.CHECK, "update call information")
-        assert self.analyzed_graph is None, (
-            "Call information must not change after analysis"
-        )
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
         assert ctx.current_caller in self.call_info.call_graph
@@ -435,9 +429,6 @@ class CompilationEngine:
         """Registers known effects for a function, for when the effects cannot be
         attributed to some concrete callee (i.e. with its own MonoDefId)."""
         self.assert_stage(CompilationStage.CHECK, "update call information")
-        assert self.analyzed_graph is None, (
-            "Call information must not change after analysis"
-        )
         self.call_info.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
@@ -445,10 +436,15 @@ class CompilationEngine:
             raise CompilationStageError(
                 context, actual_stage=self._stage, expected_stage=stage
             )
-        if self._stage == CompilationStage.COMPILE:
-            assert self.analyzed_graph is not None, (
-                "analyzed_graph is None, thus checking is not complete"
-            )
+        match stage:
+            case CompilationStage.CHECK:
+                assert self.analyzed_graph is None, (
+                    "Call information must not change after analysis"
+                )
+            case CompilationStage.COMPILE:
+                assert self.analyzed_graph is not None, (
+                    "analyzed_graph is None, thus checking is not complete"
+                )
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -568,9 +564,6 @@ class CompilationEngine:
         (i.e. a user-defined function), even if it doesn't actually contain any.
         """
         self.assert_stage(CompilationStage.CHECK, "update call information")
-        assert self.analyzed_graph is None, (
-            "Call information must not change after analysis"
-        )
         assert mono_id not in self.call_info.call_graph
         self.call_info.call_graph[mono_id] = set()
         self.call_info.load_graph[mono_id] = set()
