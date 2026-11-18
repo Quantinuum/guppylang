@@ -245,12 +245,64 @@ def test_power_simple(validate):
         with power(n):
             pass
 
-    # Tket passes reject power modifiers, so do not export this HUGR for CI
-    # normalization and don't run default optimization passes.
-    validate(
-        bar.with_minimal_opt().compile_function(),
-        export=False,
+    validate(bar.compile_function())
+
+
+def test_power_combined_modifiers(validate):
+    @guppy
+    def main(q: qubit, ctrl: qubit, n: nat, m: nat) -> None:
+        with power(n), control(ctrl), dagger, power(m):
+            rx(q, angle(0.25))
+
+        with control(ctrl):
+            a = angle(0.25)
+            with power(n):
+                with dagger:
+                    with power(m):
+                        rx(q, a)
+
+    validate(main.compile_function())
+
+
+@pytest.mark.parametrize(
+    ("n", "m", "enabled"),
+    [(0, 2, 1), (2, 0, 1), (2, 2, 1), (2, 3, 1), (2, 3, 0)],
+)
+def test_power_nested_repeats_block(n, m, enabled, run_statevector_fn):
+    @guppy
+    def main(outer: int, inner: int, enabled: int) -> array[qubit, 2]:
+        q = qubit()
+        ctrl = qubit()
+        if enabled != 0:
+            x(ctrl)
+        with power(nat(outer)):
+            with control(ctrl):
+                with power(nat(inner)):
+                    rx(q, angle(0.25))
+                    rz(q, angle(0.125))
+        if enabled != 0:
+            for _ in range(outer * inner):
+                rz(q, angle(-0.125))
+                rx(q, angle(-0.25))
+        return array(q, ctrl)
+
+    # Four or six blocks leave a superposition; reversing the gate order and
+    # angles returns |0>. With control disabled, both operations are skipped.
+    run_statevector_fn(
+        main, expected=[1 - enabled, enabled, 0, 0], args=[n, m, enabled], num_qubits=2
     )
+
+
+def test_power_daggered(run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 1]:
+        q = qubit()
+        rx(q, angle(0.5))
+        with power(2), dagger:
+            rx(q, angle(0.25))
+        return array(q)
+
+    run_statevector_fn(main, expected=[1, 0], num_qubits=1)
 
 
 def test_call_in_modifier(validate):
@@ -1150,10 +1202,7 @@ def test_double_dagger_cancellation_2(validate):
         discard(q)
         discard(c2)
 
-    main.check()
-    # Tket passes reject power modifiers, so do not export this HUGR for CI
-    # normalization.
-    # validate(main.compile())
+    validate(main.compile())
 
 
 def test_combined_with_items_nested(validate):
