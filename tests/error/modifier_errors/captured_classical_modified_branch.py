@@ -1,12 +1,12 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import dagger
+from guppylang.std.builtins import power
 
 
 @guppy
 def test(b: bool) -> int:
     x = 3
-    with dagger:
-        x += 1
+    with power(2):
+        x = 1
     if b:
         return x
     return 0

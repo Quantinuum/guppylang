@@ -77,9 +77,15 @@ class UnknownModifierError(Error):
 
 @dataclass(frozen=True)
 class ReassignedInPowerError(Error):
-    title: ClassVar[str] = "Outer variable reassigned in power block"
-    span_label: ClassVar[str] = "`{var}` is defined outside this power block"
+    title: ClassVar[str] = "Variable used after assignment in a power block"
+    span_label: ClassVar[str] = (
+        "`{var}` would be used after assignment in a subsequent iteration"
+    )
     var: str
+
+    @dataclass(frozen=True)
+    class AssignedHere(Note):
+        span_label: ClassVar[str] = "variable assigned here"
 
     @dataclass(frozen=True)
     class Power(Note):
@@ -88,10 +94,10 @@ class ReassignedInPowerError(Error):
     @dataclass(frozen=True)
     class Explanation(Help):
         message: ClassVar[str] = (
-            "Variables defined outside a power block cannot be reassigned inside it. "
             "Variables assigned inside a modifier block are not available outside "
-            "that block, so reassigning an outer variable would make it unavailable "
-            "in subsequent iterations of the power block."
+            "that block, including in subsequent iterations of a power block. "
+            "Assign the variable before reading it in each iteration, or use a "
+            "different name for the assignment."
         )
 
 

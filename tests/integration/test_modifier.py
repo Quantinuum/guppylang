@@ -248,6 +248,21 @@ def test_power_simple(validate):
     validate(bar.compile_function())
 
 
+def test_power_reassign_outer_before_use(validate):
+    @guppy
+    def main(x: int, b: bool, q: qubit) -> int:
+        z = 0
+        with power(2):
+            with control(q):
+                if b:
+                    x = 1
+                    y = x + z
+        x = 3
+        return x
+
+    validate(main.compile_function())
+
+
 def test_power_combined_modifiers(validate):
     @guppy
     def main(q: qubit, ctrl: qubit, n: nat, m: nat) -> None:

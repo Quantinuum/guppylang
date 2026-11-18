@@ -55,12 +55,19 @@ def check_modified_block(
     stats = cfg.analyze(def_ass_before, maybe_ass_before, [])
 
     if modified_block.has_power():
+        # An incoming value read before assignment would be needed again in the
+        # next iteration. Assignments that only shadow unused inputs are fine.
+        live_at_entry = cfg.live_before[cfg.entry_bb]
         for body_stats in stats.values():
             assignments = body_stats.assigned_in_modifier_block | body_stats.assigned
-            reassigned = def_ass_before & assignments.keys()
+            reassigned = def_ass_before & live_at_entry.keys() & assignments.keys()
             if reassigned:
                 var = min(reassigned)
-                err = ReassignedInPowerError(assignments[var], var)
+                use = live_at_entry[var].vars.used[var]
+                err = ReassignedInPowerError(use, var)
+                err.add_sub_diagnostic(
+                    ReassignedInPowerError.AssignedHere(assignments[var])
+                )
                 err.add_sub_diagnostic(
                     ReassignedInPowerError.Power(modified_block.power[0])
                 )

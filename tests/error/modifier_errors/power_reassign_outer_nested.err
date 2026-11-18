@@ -1,19 +1,22 @@
-Error: Outer variable reassigned in power block (at $FILE:9:12)
+Error: Variable used after assignment in a power block (at $FILE:9:12)
   | 
 7 |     with power(2):  # noqa: SIM117
 8 |         with control(q):
 9 |             x += 1
-  |             ^^^^^^ `x` is defined outside this power block
+  |             ^ `x` would be used after assignment in a subsequent iteration
 
-Note:
+Notes:
   | 
+8 |         with control(q):
+9 |             x += 1
+  |             ------ variable assigned here
+
 6 | def test(q: qubit, x: int) -> None:
 7 |     with power(2):  # noqa: SIM117
   |          -------- power modifier is used here
 
-Help: Variables defined outside a power block cannot be reassigned inside it.
-Variables assigned inside a modifier block are not available outside that block,
-so reassigning an outer variable would make it unavailable in subsequent
-iterations of the power block.
+Help: Variables assigned inside a modifier block are not available outside that
+block, including in subsequent iterations of a power block. Assign the variable
+before reading it in each iteration, or use a different name for the assignment.
 
 Guppy compilation failed due to 1 previous error
