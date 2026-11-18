@@ -1,9 +1,12 @@
+import math as pymath
+import sys
+
 import pytest
 
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.angles import angle, pi
-from guppylang.std.builtins import nat
+from guppylang.std.builtins import nat, output
 from tests.util import compile_guppy
 
 
@@ -25,6 +28,87 @@ def test_arith_basic(run_int_fn):
         return add(40, 2)
 
     run_int_fn(main, 42)
+
+
+@pytest.mark.parametrize("x", [-(2**63) + 1, -42, -1, 0, 1, 42, 2**63 - 1])
+def test_abs_int(run_int_fn, x):
+    @guppy
+    def main(x: int) -> int:
+        return abs(x)
+
+    run_int_fn(main, abs(x), args=[x])
+
+
+@pytest.mark.parametrize("x", [0, 1, 42, 2**63 - 1])
+def test_abs_nat(run_nat_fn, x):
+    @guppy
+    def main(x: nat) -> nat:
+        return abs(x)
+
+    run_nat_fn(main, x, args=[x])
+
+
+def test_abs_float(run_float_fn_approx_per_shot):
+    @guppy
+    def main(x: float) -> None:
+        output("abs", abs(x))
+        # The reciprocal also distinguishes positive zero from negative zero.
+        output("reciprocal", 1.0 / abs(x))
+
+    xs = [
+        -sys.float_info.max,
+        -42.42,
+        -1.0,
+        -sys.float_info.min,
+        -pymath.ulp(0.0),
+        -0.0,
+        0.0,
+        pymath.ulp(0.0),
+        sys.float_info.min,
+        1.0,
+        42.42,
+        sys.float_info.max,
+        -pymath.inf,
+        pymath.inf,
+        pymath.nan,
+    ]
+    run_float_fn_approx_per_shot(
+        main,
+        [[abs(x), 1.0 / abs(x) if x != 0.0 else pymath.inf] for x in xs],
+        args=[{"x": x} for x in xs],
+        rel=0.0,
+        abs=0.0,
+        nan_ok=True,
+    )
+
+
+def test_float_floor_ceil(run_float_fn_approx_per_shot):
+    @guppy
+    def main(x: float) -> None:
+        output("floor", x.__floor__())
+        output("ceil", x.__ceil__())
+
+    xs = [
+        -sys.float_info.max,
+        -42.42,
+        -1.0,
+        pymath.nextafter(-1.0, 0.0),
+        -pymath.ulp(0.0),
+        -0.0,
+        0.0,
+        pymath.ulp(0.0),
+        pymath.nextafter(1.0, 0.0),
+        1.0,
+        42.42,
+        sys.float_info.max,
+    ]
+    run_float_fn_approx_per_shot(
+        main,
+        [[float(pymath.floor(x)), float(pymath.ceil(x))] for x in xs],
+        args=[{"x": x} for x in xs],
+        rel=0.0,
+        abs=0.0,
+    )
 
 
 def test_constant(validate):
