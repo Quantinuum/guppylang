@@ -15,6 +15,8 @@ from guppylang import (
 from guppylang.emulator.exceptions import EmulatorBuildError
 from guppylang.library import GuppyLibrary, link_name
 from guppylang.optimizer import _RemoveRedundanciesPass
+from guppylang.std.array import array
+from guppylang.std.platform import output
 from guppylang.std.quantum import h, qubit
 from hugr.metadata import HugrDebugInfo
 from hugr.ops import FuncDefn
@@ -294,3 +296,19 @@ def test_library_custom_passes() -> None:
     # Reconfiguration leaves the original builder unchanged.
     configured.compile()
     assert calls == ["first", "second"]
+
+
+def test_resolve_extensions() -> None:
+    """Whether all extensions are packaged after optimisation potentially introduces
+    new required extensions.
+
+    Regression test for https://github.com/Quantinuum/guppylang/issues/2552."""
+
+    @guppy
+    def main() -> None:
+        output("b", array(True, False))
+        output("f", array(1.2, 1.9))
+
+    from hugr.cli import validate
+
+    validate(main.compile().to_bytes())
