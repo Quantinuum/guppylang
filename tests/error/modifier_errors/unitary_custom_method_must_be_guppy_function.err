@@ -5,7 +5,7 @@ Error: Unexpected statement (at $FILE:11:4)
 11 |     class daggered:
    |     ^^^^^^^^^^^^^^^
 12 |         value: int
-   | ^^^^^^^^^^^^^^^^^^ Unexpected statement in in a `@guppy.unitary` class
+   | ^^^^^^^^^^^^^^^^^^ Unexpected statement in a `@guppy.unitary` class
 
 Help: Only Guppy functions named: '__call__', 'daggered', 'controlled',
 'ctrl_daggered', 'powered', 'power_daggered', 'ctrl_powered',

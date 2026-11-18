@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.0...guppylang-internals-v1.2.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* Raise minimum `tket` version to 0.15.15 (#2526)([cf2336b](https://github.com/Quantinuum/guppylang/commit/cf2336b3a69ccfedac1a5065fe7e70b722307e4e))
+* Ignore docstrings in guppy.unitary classes (#2524)([425437c](https://github.com/Quantinuum/guppylang/commit/425437caeb8856da12e33c982f624ebbc536d066))
+* Reject whole-value uses of mixed quantum/classical structs and tuples under dagger (#2523)([02544e0](https://github.com/Quantinuum/guppylang/commit/02544e0496732e4b5ef404cb699aa8e5879dd046))
+* Fix linearity checking of struct and tuple fields in control blocks (#2510)([d4870c4](https://github.com/Quantinuum/guppylang/commit/d4870c4b6f371fc523f6690a6bc9b1e3a3b83ec8))
+* Detect qubits in struct and enum fields when checking control constraints (#2509)([74ea66a](https://github.com/Quantinuum/guppylang/commit/74ea66a9038eb3f4d6611b9a276f8f43b2fe5f35))
+
 ## [1.2.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.0-rc0...guppylang-internals-v1.2.0) (2026-10-26)
 
 
@@ -40,6 +51,13 @@
 ### Performance Improvements
 
 * Avoid single dispatch on hot code paths (#2317)([7d5589e](https://github.com/Quantinuum/guppylang/commit/7d5589ee9b6938a7c64bfdd25690ff365cde746d))
+
+## [1.1.5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.4...guppylang-internals-v1.1.5) (2026-10-26)
+
+
+### Bug Fixes
+
+* Avoid retaining the entire call stack when storing frames for compilation stage (#2457)([fc979f3](https://github.com/Quantinuum/guppylang/commit/fc979f37bdf3fa174582f97ac99330ff17d42f71))
 
 ## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
 

@@ -237,7 +237,7 @@ def test_control_nested_quantum_struct(validate):
         with control(c):
             use(s)
 
-    validate(main.with_minimal_opt().compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_method_call_on_param_shadowing_struct_name(validate):

@@ -5,7 +5,7 @@ Error: Unexpected statement (at $FILE:10:4)
 10 |     def other() -> None:
    |     ^^^^^^^^^^^^^^^^^^^^
 11 |         pass
-   | ^^^^^^^^^^^^ Unexpected statement in in a `@guppy.unitary` class
+   | ^^^^^^^^^^^^ Unexpected statement in a `@guppy.unitary` class
 
 Help: Only Guppy functions named: '__call__', 'daggered', 'controlled',
 'ctrl_daggered', 'powered', 'power_daggered', 'ctrl_powered',

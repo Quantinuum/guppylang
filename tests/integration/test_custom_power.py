@@ -313,6 +313,7 @@ def test_power_dispatch_requires_single_call(
         ),
     )
     module.main.check()
+    assert ENGINE.analyzed_graph is not None
     expected_name = (
         name
         if call_count == 1
@@ -323,10 +324,10 @@ def test_power_dispatch_requires_single_call(
             "ctrl_power_daggered": "ctrl_daggered",
         }[name]
     )
-    assert {use.kind.value for use in ENGINE.custom_uses_by_mono_def.values()} == (
-        {expected_name} if expected_name else set()
-    )
-    contexts = ENGINE.local_modifiers_by_edge[
+    assert {
+        use.kind.value for use in ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
+    } == ({expected_name} if expected_name else set())
+    contexts = ENGINE.call_info.local_modifiers_by_edge[
         (module.main.id, ()), (module.gate.id, ())
     ]
     assert all(context.powered for context in contexts)
@@ -371,11 +372,14 @@ def test_power_eligibility_is_recorded_per_block(load_gate, validate):
         ),
     )
     module.main.check()
-    assert {use.kind for use in ENGINE.custom_uses_by_mono_def.values()} == {
+    assert ENGINE.analyzed_graph is not None
+    assert {
+        use.kind for use in ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
+    } == {
         CustomModifierKind.CTRL_DAGGERED,
         CustomModifierKind.CTRL_POWER_DAGGERED,
     }
-    contexts = ENGINE.local_modifiers_by_edge[
+    contexts = ENGINE.call_info.local_modifiers_by_edge[
         (module.main.id, ()), (module.gate.id, ())
     ]
     assert {context.power_customizable for context in contexts} == {False, True}
@@ -411,7 +415,10 @@ def test_power_is_not_distributed_through_helpers(load_gate, helper_calls, valid
         ),
     )
     module.main.check()
-    assert {use.kind for use in ENGINE.custom_uses_by_mono_def.values()} == {
+    assert ENGINE.analyzed_graph is not None
+    assert {
+        use.kind for use in ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
+    } == {
         CustomModifierKind.CTRL_DAGGERED,
     }
     validate(module.main.with_minimal_opt().compile_function(), export=False)
@@ -444,7 +451,8 @@ def test_power_requires_one_unconditional_body_call(load_gate, body, validate):
         ),
     )
     module.main.check()
-    assert not ENGINE.custom_uses_by_mono_def
+    assert ENGINE.analyzed_graph is not None
+    assert not ENGINE.analyzed_graph.custom_uses_by_mono_def
     checked_main = ENGINE.checked[module.main.id, ()]
     [block] = [
         stmt
@@ -474,11 +482,14 @@ def test_inner_power_can_be_custom_inside_multicall_power(load_gate, validate):
         ),
     )
     module.main.check()
-    contexts = ENGINE.local_modifiers_by_edge[
+    assert ENGINE.analyzed_graph is not None
+    contexts = ENGINE.call_info.local_modifiers_by_edge[
         (module.main.id, ()), (module.gate.id, ())
     ]
     assert {context.power_customizable for context in contexts} == {False, True}
-    assert {use.kind for use in ENGINE.custom_uses_by_mono_def.values()} == {
+    assert {
+        use.kind for use in ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
+    } == {
         CustomModifierKind.POWERED,
     }
     validate(module.main.with_minimal_opt().compile_function(), export=False)
@@ -514,7 +525,8 @@ def test_multicall_power_uses_unpowered_methods_for_each_gate(load_gate, validat
         ),
     )
     module.main.check()
-    uses = list(ENGINE.custom_uses_by_mono_def.values())
+    assert ENGINE.analyzed_graph is not None
+    uses = list(ENGINE.analyzed_graph.custom_uses_by_mono_def.values())
     assert len(uses) == 2
     assert {use.kind for use in uses} == {CustomModifierKind.CTRL_DAGGERED}
     assert {use.unmodified_callee[0] for use in uses} == {
