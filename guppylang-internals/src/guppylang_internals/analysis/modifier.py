@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from guppylang_internals.checker.errors.generic import (
@@ -56,22 +57,49 @@ class ResolvedCustomCall:
     call: Span
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ModifierAnalysisResult:
-    """Result of propagating modifiers through a monomorphized call graph.
+    """An immutable snapshot of program dependencies and custom modifier uses after
+    modifier analysis.
 
-    Args:
-        expanded_calls: Call graph after propagating modifiers and resolving calls to
-            custom modified implementations.
-        resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
-            context.
-        custom_uses_by_mono_def: Concrete custom modifier uses keyed by custom
-            definition ``MonoDefId``.
+    Attributes:
+        call_graph: Maps each caller to its unique, unordered callees after modifier
+            resolution.
+        load_graph: Maps each function to the functions it loads as values. These
+            dependencies do not contribute to call components or effect propagation.
+        custom_uses_by_mono_def: Maps custom definition ``MonoDefId`` values to their
+            concrete modifier uses.
     """
 
-    expanded_calls: dict[MonoDefId, list[MonoDefId]]
-    resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
-    custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
+    call_graph: Mapping[MonoDefId, frozenset[MonoDefId]]
+    load_graph: Mapping[MonoDefId, frozenset[MonoDefId]]
+    custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse]
+
+    def __init__(
+        self,
+        call_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+        load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+        custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
+    ) -> None:
+        object.__setattr__(
+            self,
+            "call_graph",
+            MappingProxyType(
+                {caller: frozenset(callees) for caller, callees in call_graph.items()}
+            ),
+        )
+        object.__setattr__(
+            self,
+            "load_graph",
+            MappingProxyType(
+                {owner: frozenset(loads) for owner, loads in load_graph.items()}
+            ),
+        )
+        object.__setattr__(
+            self,
+            "custom_uses_by_mono_def",
+            MappingProxyType(dict(custom_uses_by_mono_def)),
+        )
 
 
 ResolveModifiedCall = Callable[
@@ -81,8 +109,8 @@ ResolveModifiedCall = Callable[
 
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
-    raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
-    load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+    raw_calls: Mapping[MonoDefId, Collection[MonoDefId]],
+    load_graph: Mapping[MonoDefId, Collection[MonoDefId]],
     local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
 ) -> ModifierAnalysisResult:
@@ -94,11 +122,16 @@ def analyze_modifier_calls(
     Functions loaded as values are additional roots with no inherited modifiers.
     Explore their calls and further loads, and record loads separately from the
     call graph.
+
+    Return a snapshot of the resolved call graph, load graph, and concrete custom
+    modifier uses keyed by custom definition ``MonoDefId``.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
     # Unreachable and opaque generic definitions retain their original rows.
-    expanded_calls = {caller: list(callees) for caller, callees in raw_calls.items()}
+    expanded_calls: dict[MonoDefId, set[MonoDefId]] = {
+        caller: set(callees) for caller, callees in raw_calls.items()
+    }
     # Functions whose output row has already been initialized.
     expanded_callers: set[MonoDefId] = set()
     # Resolved callees keyed by raw edge and effective modifier context.
@@ -128,7 +161,7 @@ def analyze_modifier_calls(
 
         caller = state.function
         if caller not in expanded_callers:
-            expanded_calls[caller] = []
+            expanded_calls[caller] = set()
             expanded_callers.add(caller)
 
         # Loading a function never invokes it or applies the loader's modifiers.
@@ -168,7 +201,7 @@ def analyze_modifier_calls(
                 # Different paths may reach the same edge with the same modifier
                 # context. The resolved callee must be the same.
                 assert previous_resolution == resolved_callee
-                expanded_calls[caller].append(resolved_callee)
+                expanded_calls[caller].add(resolved_callee)
 
                 if custom_use is None:
                     # No custom implementation consumed the modifiers. The compiler
@@ -199,20 +232,10 @@ def analyze_modifier_calls(
                 if resolved_callee in raw_calls:
                     worklist.append(next_state)
 
-    for caller, callees in expanded_calls.items():
-        if caller in expanded_callers:
-            # Multiple contextual invocations and call sites may resolve to the same
-            # target. Preserve discovery order while removing duplicate graph edges.
-            expanded_calls[caller] = list(dict.fromkeys(callees))
-
     _check_recursive_custom_uses(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
-    return ModifierAnalysisResult(
-        expanded_calls,
-        resolved_calls,
-        custom_uses_by_mono_def,
-    )
+    return ModifierAnalysisResult(expanded_calls, load_graph, custom_uses_by_mono_def)
 
 
 def _check_recursive_custom_uses(

@@ -36,6 +36,7 @@ from guppylang_internals.ast_util import (
     AstVisitor,
     breaks_in_loop,
     fake_call,
+    frozenlist,
     get_type,
     get_type_opt,
     return_nodes_in_ast,
@@ -403,7 +404,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         Returns the type-annotated constant and substitution on match, or `None` if
         `act` does not unify with `ty`. `act` is only a hint (e.g. from
-        `python_value_to_guppy_type`), so we unify against `ty` and leave it to the
+        `python_value_to_guppy`), so we unify against `ty` and leave it to the
         caller to decide how to handle a mismatch. Never raises."""
         subst = unify(ty, act, {})
         if subst is None:
@@ -413,9 +414,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         return with_type(act, with_loc(node, ast.Constant(value=value))), subst
 
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
-        act = python_value_to_guppy_type(node.value, node, ty)
-        if act is None:
+        actval = python_value_to_guppy(node.value, node, ty)
+        if actval is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
+        act, node.value = actval
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
         assert inst == (), "Const values are not generic"
         return node, subst
@@ -434,13 +436,12 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         ):
             match self.ctx.globals[node.id]:
                 case PythonObject(obj=val):
-                    act = python_value_to_guppy_type(val, node, ty)
-                    if (
-                        act is not None
-                        and (result := self._check_python_value(val, act, node, ty))
-                        is not None
-                    ):
-                        return result
+                    if (actval := python_value_to_guppy(val, node, ty)) is not None:
+                        act, val = actval
+                        if (
+                            result := self._check_python_value(val, act, node, ty)
+                        ) is not None:
+                            return result
         return self.generic_visit(node, ty)
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
@@ -563,12 +564,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        act = python_value_to_guppy_type(python_val, node.value, ty)
-        if act is None:
+        actval = python_value_to_guppy(python_val, node.value, ty)
+        if actval is None:
             raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
-        if (
-            result := self._check_python_value(python_val, act, node.value, ty)
-        ) is None:
+        act, val = actval
+        if (result := self._check_python_value(val, act, node.value, ty)) is None:
             self._fail(ty, act, node)
         expr, subst = result
         return with_loc(node, expr), subst
@@ -624,9 +624,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return ExprChecker(self.ctx).check(expr, ty, kind)
 
     def visit_Constant(self, node: ast.Constant) -> tuple[ast.expr, Type]:
-        ty = python_value_to_guppy_type(node.value, node)
-        if ty is None:
+        tyval = python_value_to_guppy(node.value, node)
+        if tyval is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
+        ty, node.value = tyval
         return node, ty
 
     def _check_generic_param(self, name: str, node: ast.expr) -> tuple[ast.expr, Type]:
@@ -692,7 +693,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             raise GuppyError(err)
                     return self._check_global(defn, name_id, node)
                 case PythonObject(obj=val):
-                    if ty := python_value_to_guppy_type(val, node):
+                    if tyval := python_value_to_guppy(val, node):
+                        ty, val = tyval
                         return with_loc(node, ast.Constant(value=val)), ty
                     raise GuppyError(UnsupportedPythonValueError(node, type(val)))
 
@@ -1395,8 +1397,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_ComptimeExpr(self, node: ComptimeExpr) -> tuple[ast.expr, Type]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if ty := python_value_to_guppy_type(python_val, node):
-            return with_loc(node, ast.Constant(value=python_val)), ty
+        if tyval := python_value_to_guppy(python_val, node):
+            ty, val = tyval
+            return with_loc(node, ast.Constant(value=val)), ty
 
         raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
 
@@ -2167,32 +2170,43 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
     return python_val
 
 
-def python_value_to_guppy_type(
+def python_value_to_guppy(
     v: Any, node: ast.AST, type_hint: Type | None = None
-) -> Type | None:
-    """Turns a primitive Python value into a Guppy type.
+) -> tuple[Type, Any] | None:
+    """Checks that a Python value can be reified as a Guppy value.
+
+    Returns both the corresponding Guppy type and a converted value that Guppy
+    can read.
 
     Accepts an optional `type_hint` for the expected expression type that is used to
     infer a more precise type (e.g. distinguishing between `int` and `nat`). Note that
     invalid hints are ignored, i.e. no user error are emitted.
 
+    Comptime values must be immutable. Both for semantics reasons (comptime
+    values are copyable, and their ownership can't be restricted) and for
+    implementation reasons, which assumes that comptime values are hashable. In
+    addition to determining the Guppy type of the input Python value, this
+    function converts mutable values to immutable ones (currently `list` ->
+    `frozenlist`).
+
     Returns `None` if the Python value cannot be represented in Guppy.
+
     """
     match v:
         case bool():
-            return bool_type()
+            return bool_type(), v
         case str():
-            return string_type()
+            return string_type(), v
         # Only resolve `int` to `nat` if the user specifically asked for it
         case int(n) if type_hint == nat_type() and n >= 0:
             _int_bounds_check(n, node, signed=False)
-            return nat_type()
+            return nat_type(), v
         # Otherwise, default to `int` for consistency with Python
         case int(n):
             _int_bounds_check(n, node, signed=True)
-            return int_type()
+            return int_type(), v
         case float():
-            return float_type()
+            return float_type(), v
         case tuple(elts):
             hints = (
                 type_hint.element_types
@@ -2200,20 +2214,27 @@ def python_value_to_guppy_type(
                 else len(elts) * [None]
             )
             tys: list[Type] = []
+            vals: list[Any] = []
             for elt, hint in zip(elts, hints, strict=False):
-                ty = python_value_to_guppy_type(elt, node, hint)
-                if ty is None:
+                tyval = python_value_to_guppy(elt, node, hint)
+                if tyval is None:
                     err = UnsupportedPythonValueError(node, type(elt))
                     err.add_sub_diagnostic(
                         UnsupportedPythonValueError.InContainer(None, tuple)
                     )
                     raise GuppyError(err)
+                ty, val = tyval
                 tys.append(ty)
-            return TupleType(tys)
+                vals.append(val)
+            return TupleType(tys), tuple(vals)
         case list():
-            return _python_list_to_guppy_type(v, node, type_hint)
+            return _python_list_to_guppy(v, node, type_hint)
+        # For the sake of idempotence, let's support already elaborated values
+        # as well. It may not matter, but it's safer.
+        case frozenlist():
+            return _python_list_to_guppy(v, node, type_hint)
         case None:
-            return NoneType()
+            return NoneType(), v
         case _:
             return None
 
@@ -2231,16 +2252,19 @@ def _int_bounds_check(value: int, node: AstNode, signed: bool) -> None:
         raise GuppyTypeError(err)
 
 
-def _python_list_to_guppy_type(
-    vs: list[Any], node: ast.AST, type_hint: Type | None
-) -> OpaqueType | None:
+def _python_list_to_guppy(
+    vs: Sequence[Any], node: ast.AST, type_hint: Type | None
+) -> tuple[OpaqueType, Any] | None:
     """Turns a Python list into a Guppy type.
 
     Returns `None` if the list contains different types or types that are not
     representable in Guppy.
     """
     if len(vs) == 0:
-        return frozenarray_type(ExistentialTypeVar.fresh("T", True, True), 0)
+        return (
+            frozenarray_type(ExistentialTypeVar.fresh("T", True, True), 0),
+            frozenlist(()),
+        )
 
     # All the list elements must have a unifiable types
     v, *rest = vs
@@ -2249,18 +2273,22 @@ def _python_list_to_guppy_type(
         if type_hint and is_frozenarray_type(type_hint)
         else None
     )
-    el_ty = python_value_to_guppy_type(v, node, elt_hint)
-    if el_ty is None:
+    el_tyval = python_value_to_guppy(v, node, elt_hint)
+    if el_tyval is None:
         err = UnsupportedPythonValueError(node, type(v))
         err.add_sub_diagnostic(UnsupportedPythonValueError.InContainer(None, list))
         raise GuppyError(err)
+    (el_ty, fst_val) = el_tyval
+    vals: list[Any] = [fst_val]
     for v in rest:
-        ty = python_value_to_guppy_type(v, node, elt_hint)
-        if ty is None:
+        tyval = python_value_to_guppy(v, node, elt_hint)
+        if tyval is None:
             err = UnsupportedPythonValueError(node, type(v))
             err.add_sub_diagnostic(UnsupportedPythonValueError.InContainer(None, list))
             raise GuppyError(err)
+        ty, val = tyval
+        vals.append(val)
         if (subst := unify(ty, el_ty, {})) is None:
             raise GuppyError(ComptimeExprIncoherentListError(node))
         el_ty = el_ty.substitute(subst)
-    return frozenarray_type(el_ty, len(vs))
+    return (frozenarray_type(el_ty, len(vs)), frozenlist(tuple(vals)))

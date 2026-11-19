@@ -807,7 +807,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.2.6,<3" },
     { name = "pytket", specifier = ">=2.7.0" },
     { name = "selene-hugr-qis-compiler", specifier = "~=0.5.1" },
-    { name = "selene-sim", specifier = "~=0.3.1" },
+    { name = "selene-sim", specifier = "~=0.3.5" },
     { name = "tqdm", specifier = ">=4.70.0" },
 ]
 
