@@ -14,6 +14,8 @@ from guppylang import (
 )
 from guppylang.emulator.exceptions import EmulatorBuildError
 from guppylang.optimizer import _RemoveRedundanciesPass
+from guppylang.std.array import array
+from guppylang.std.platform import output
 from hugr.metadata import HugrDebugInfo
 from hugr.passes.composable import ComposablePass, PassResult
 
@@ -209,3 +211,19 @@ def test_debug_compile_allows_optimization() -> None:
     )
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
+
+
+def test_resolve_extensions() -> None:
+    """Whether all extensions are packaged after optimisation potentially introduces
+    new required extensions.
+
+    Regression test for https://github.com/Quantinuum/guppylang/issues/2552."""
+
+    @guppy
+    def main() -> None:
+        output("b", array(True, False))
+        output("f", array(1.2, 1.9))
+
+    from hugr.cli import validate
+
+    validate(main.compile().to_bytes())
