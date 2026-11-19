@@ -31,11 +31,13 @@ from guppylang_internals.definition.util import (
     CheckedField,
     DuplicateFieldError,
     NonGuppyMethodError,
+    ProtocolHint,
     UncheckedField,
     check_not_recursive,
     extract_generic_params,
     is_guppy_unitary,
     parse_py_class,
+    try_parse_generic_base,
 )
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
@@ -101,7 +103,21 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
         # Look for generic parameters from Python 3.12 style syntax
-        params = extract_generic_params(cls_def, self.name, globals, "Enum")
+        params, bases = extract_generic_params(cls_def, self.name, globals)
+
+        # If any other base remain, then fail: they're unsupported in enums
+        for base in bases:
+            if try_parse_generic_base(base, "Protocol"):
+                err = UnsupportedError(base, "Protocol base", singular=True)
+                err.add_sub_diagnostic(ProtocolHint(None))
+                raise GuppyError(err)
+            else:
+                err = UnsupportedError(
+                    base,
+                    "Enum inheritance",
+                    singular=True,
+                )
+                raise GuppyError(err)
 
         from guppylang.defs import GuppyDefinition
 

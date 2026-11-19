@@ -1,0 +1,14 @@
+Error: Signature in implementation doesn't match protocol (at $FILE:15:0)
+   | 
+13 | 
+14 | @guppy.struct
+15 | class Bar(Foo):
+   | ^^^^^^^^^^^^^^^ Type signature of method `foo` differs from that required by
+   |                 protocol
+
+Note: Protocol `Foo` requires method `foo` to have type signature:
+    `Bar -> nat`
+but got actual type signature:
+    `Bar -> bool`
+
+Guppy compilation failed due to 1 previous error
