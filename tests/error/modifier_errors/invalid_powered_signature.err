@@ -1,0 +1,15 @@
+Error: Incompatible signature for custom `powered` implementation (at $FILE:19:4)
+   | 
+17 | 
+18 |     @guppy
+19 |     def powered(q: qubit, exponent: int) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+20 |         pass
+   | ^^^^^^^^^^^^ Expected signature `(qubit, nat) -> None`, got `(qubit, int)
+   |              -> None`
+
+Note: A custom `powered` implementation must have its parent function's
+signature, followed by an `array[qubit, n]` control input for controlled
+implementations, and a final `nat` exponent input.
+
+Guppy compilation failed due to 1 previous error

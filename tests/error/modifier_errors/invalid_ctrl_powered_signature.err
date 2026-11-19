@@ -1,0 +1,17 @@
+Error: Incompatible signature for custom `ctrl_powered` implementation (at $FILE:20:4)
+   | 
+18 | 
+19 |     @guppy
+20 |     def ctrl_powered[n: nat](
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+   | ...
+23 |         pass
+   | ^^^^^^^^^^^^ Expected signature `forall n: nat. (qubit, array[qubit, n],
+   |              nat) -> None`, got `forall n: nat. (qubit, array[qubit, n],
+   |              int) -> None`
+
+Note: A custom `ctrl_powered` implementation must have its parent function's
+signature, followed by an `array[qubit, n]` control input for controlled
+implementations, and a final `nat` exponent input.
+
+Guppy compilation failed due to 1 previous error

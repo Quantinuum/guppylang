@@ -7,7 +7,11 @@ from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.ty import (
     CALL_CONTROLLED_METHOD,
     CALL_CTRL_DAGGERED_METHOD,
+    CALL_CTRL_POWER_DAGGERED_METHOD,
+    CALL_CTRL_POWERED_METHOD,
     CALL_DAGGERED_METHOD,
+    CALL_POWER_DAGGERED_METHOD,
+    CALL_POWERED_METHOD,
 )
 
 
@@ -17,6 +21,10 @@ class CustomModifierKind(Enum):
     DAGGERED = CALL_DAGGERED_METHOD
     CONTROLLED = CALL_CONTROLLED_METHOD
     CTRL_DAGGERED = CALL_CTRL_DAGGERED_METHOD
+    POWERED = CALL_POWERED_METHOD
+    POWER_DAGGERED = CALL_POWER_DAGGERED_METHOD
+    CTRL_POWERED = CALL_CTRL_POWERED_METHOD
+    CTRL_POWER_DAGGERED = CALL_CTRL_POWER_DAGGERED_METHOD
 
     @property
     def takes_controls(self) -> bool:
@@ -24,6 +32,18 @@ class CustomModifierKind(Enum):
         return self in {
             CustomModifierKind.CONTROLLED,
             CustomModifierKind.CTRL_DAGGERED,
+            CustomModifierKind.CTRL_POWERED,
+            CustomModifierKind.CTRL_POWER_DAGGERED,
+        }
+
+    @property
+    def takes_power(self) -> bool:
+        """Whether the implementation takes a final runtime exponent."""
+        return self in {
+            CustomModifierKind.POWERED,
+            CustomModifierKind.POWER_DAGGERED,
+            CustomModifierKind.CTRL_POWERED,
+            CustomModifierKind.CTRL_POWER_DAGGERED,
         }
 
 
