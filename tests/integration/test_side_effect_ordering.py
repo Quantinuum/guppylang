@@ -66,8 +66,11 @@ def test_loads_do_not_propagate_call_effects():
 
     root.check()
 
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert ENGINE.load_graph[root.id, ()] == {(leaf.id, ())}
+    assert ENGINE.analyzed_graph is not None
+    effects = compute_effects(
+        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.call_info.func_effects
+    )
+    assert ENGINE.analyzed_graph.load_graph[root.id, ()] == frozenset({(leaf.id, ())})
     assert effects[root.id, ()] == frozenset()
     assert effects[leaf.id, ()]
 
