@@ -586,9 +586,8 @@ class InvalidExpectedQubit(Help):
 @dataclass(frozen=True)
 class InvalidUnitaryMethodHelp(Help):
     message: ClassVar[str] = (
-        "Only Guppy functions named: '__call__', "
-        + ", ".join(f"'{kind.value}'" for kind in CustomModifierKind)
-        + " are allowed as methods in a `@guppy.unitary` class. "
+        "A `@guppy.unitary` class allows only these Guppy methods:\n"
+        "- `__call__`\n" + "\n".join(f"- `{kind.value}`" for kind in CustomModifierKind)
     )
 
 
