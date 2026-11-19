@@ -31,7 +31,7 @@ dependencies = [
     "guppylang-internals==1.2.2",
     "numpy>=2.2.6,<3",
     "selene-hugr-qis-compiler~=0.5.1",
-    "selene-sim~=0.3.1",
+    "selene-sim~=0.3.5",
     "tqdm>=4.70.0",
     "pytket>=2.7.0",
 ]
