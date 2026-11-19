@@ -88,10 +88,3 @@ def are_capturing_closures_enabled() -> bool:
 def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
     if not are_capturing_closures_enabled():
         raise GuppyError(UnsupportedError(loc, "Capturing closures"))
-
-
-def check_power_modifier_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
-        raise GuppyError(
-            ExperimentalFeatureError(loc, "`power` modifier", singular_things=True)
-        )
