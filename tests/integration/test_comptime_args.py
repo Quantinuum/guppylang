@@ -1,5 +1,5 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import nat, comptime, array
+from guppylang.std.builtins import nat, comptime, array, frozenarray
 
 
 def test_basic_nat(validate):
@@ -200,5 +200,42 @@ def test_generic_tuple(validate):
     @guppy
     def main() -> bool:
         return foo(comptime((True, False)))
+
+    validate(main.compile_function())
+
+
+def test_frozenarray(validate):
+    """Test that frozenarray can be passed as comptime arguments.
+
+    Regression test for https://github.com/Quantinuum/guppylang/issues/2521."""
+
+    @guppy
+    def foo(xs: frozenarray[int, 2] @ comptime) -> int:
+        return xs[0]
+
+    foo.check()
+
+    @guppy
+    def main() -> int:
+        return foo(comptime([1, 2]))
+
+    validate(main.compile_function())
+
+
+def test_frozenarray_list_arg(validate):
+    """Test that frozenarray can be passed as Python variables.
+
+    Regression test for https://github.com/Quantinuum/guppylang/issues/2521."""
+    xs = [1, 2]
+
+    @guppy
+    def foo(xs: frozenarray[int, 2] @ comptime) -> int:
+        return xs[0]
+
+    foo.check()
+
+    @guppy
+    def main() -> int:
+        return foo(xs)
 
     validate(main.compile_function())
