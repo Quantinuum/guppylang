@@ -205,7 +205,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "index": 4,
@@ -215,7 +217,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "end_time": 0,
@@ -226,7 +230,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "index": 3,
@@ -236,7 +242,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "duration_ns": 0,
@@ -261,15 +269,29 @@
       },
       {
         "event": {
-          "kind": "Measurement",
-          "qubit": 0
+          "kind": "FutureRead",
+          "result_id": 0
         },
         "source": {
           "index": 6,
           "kind": "UserProgram"
         }
+      },
+      {
+        "event": {
+          "kind": "FutureResult",
+          "outcome": 0,
+          "result_id": 0
+        },
+        "source": {
+          "end_time": 0,
+          "kind": "Runtime",
+          "start_time": 0
+        }
       }
-    ]
+    ],
+    "schema_version": "0.2.0",
+    "shot": 0
   },
   {
     "events": [
@@ -477,7 +499,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "index": 4,
@@ -487,7 +511,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "end_time": 0,
@@ -498,7 +524,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "index": 3,
@@ -508,7 +536,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "duration_ns": 0,
@@ -533,12 +563,24 @@
       },
       {
         "event": {
-          "kind": "Measurement",
-          "qubit": 0
+          "kind": "FutureRead",
+          "result_id": 0
         },
         "source": {
           "index": 6,
           "kind": "UserProgram"
+        }
+      },
+      {
+        "event": {
+          "kind": "FutureResult",
+          "outcome": 1,
+          "result_id": 0
+        },
+        "source": {
+          "end_time": 0,
+          "kind": "Runtime",
+          "start_time": 0
         }
       },
       {
@@ -601,7 +643,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 1
         },
         "source": {
           "index": 9,
@@ -611,7 +655,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 1
         },
         "source": {
           "end_time": 0,
@@ -622,7 +668,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "index": 5,
@@ -632,7 +680,9 @@
       {
         "event": {
           "kind": "Measurement",
-          "qubit": 0
+          "measurement_type": "Standard",
+          "qubit": 0,
+          "result_id": 0
         },
         "source": {
           "duration_ns": 0,
@@ -657,14 +707,28 @@
       },
       {
         "event": {
-          "kind": "Measurement",
-          "qubit": 1
+          "kind": "FutureRead",
+          "result_id": 1
         },
         "source": {
           "index": 11,
           "kind": "UserProgram"
         }
+      },
+      {
+        "event": {
+          "kind": "FutureResult",
+          "outcome": 1,
+          "result_id": 1
+        },
+        "source": {
+          "end_time": 0,
+          "kind": "Runtime",
+          "start_time": 0
+        }
       }
-    ]
+    ],
+    "schema_version": "0.2.0",
+    "shot": 1
   }
 ]
