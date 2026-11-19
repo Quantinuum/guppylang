@@ -42,9 +42,6 @@ from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     FunctionType,
     OpaqueType,
     StructType,
@@ -589,9 +586,9 @@ class InvalidExpectedQubit(Help):
 @dataclass(frozen=True)
 class InvalidUnitaryMethodHelp(Help):
     message: ClassVar[str] = (
-        f"Only Guppy functions named: '__call__', '{CALL_CONTROLLED_METHOD}', "
-        f"'{CALL_CTRL_DAGGERED_METHOD}' or '{CALL_DAGGERED_METHOD}' are "
-        "allowed as methods in a `@guppy.unitary` class. "
+        "Only Guppy functions named: '__call__', "
+        + ", ".join(f"'{kind.value}'" for kind in CustomModifierKind)
+        + " are allowed as methods in a `@guppy.unitary` class. "
     )
 
 
