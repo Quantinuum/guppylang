@@ -126,6 +126,9 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
+import hugr.std
+from hugr.ext import ExtensionRegistry
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -211,6 +214,19 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
 
     for module in package.modules:
         composed.run(module, inplace=True)
+
+    # Recompute used extensions inplace as a quick mitigation for
+    # https://github.com/Quantinuum/guppylang/issues/2552 while missing extensions are
+    # not registered by the passes themselves.
+    used_extensions_result = package.used_extensions(resolve_from=ExtensionRegistry())
+    std_ext_names = hugr.std._std_extensions()
+    packaged_extensions = [
+        ext
+        for ext in used_extensions_result.used_extensions.extensions
+        if ext.name not in std_ext_names
+    ]
+    package.extensions.clear()
+    package.extensions.extend(packaged_extensions)
 
     return package
 
