@@ -74,7 +74,7 @@ exclude_also = [
 
 [tool.pytest.ini_options]
 # benchmarks run explicitly with `just bench`;
-# nb_regression plugin is registered late (in conftest.py) to allow warning suppresion
+# nb_regression plugin is registered late (in conftest.py) to allow warning suppresion TODO remove once fixed
 addopts = "--benchmark-disable -m 'not test_exported_hugrs' -p no:nb_regression"
 markers = [
   "test_exported_hugrs",
