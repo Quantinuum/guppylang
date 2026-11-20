@@ -19,4 +19,6 @@ def main() -> None:
     f: Function[[], None] = overloaded
 
 
-main.compile()
+# Compilation already rejected this typed assignment before the checking fix.
+# Use check() to test that the error is raised during checking.
+main.check()
