@@ -4,12 +4,19 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import hugr.std.int
-from hugr import ext, model, ops, val
+import hugr.std.logic
+from hugr import Wire, ext, model, ops, val
 from hugr import tys as ht
 from hugr.std.int import int_t
 
 from guppylang_internals.compiler.builder import OpWithEffects, pure
-from guppylang_internals.std._internal.compiler.prelude import error_type
+from guppylang_internals.definition.custom import CustomCallCompiler
+from guppylang_internals.nodes import AbortKind
+from guppylang_internals.std._internal.compiler.prelude import (
+    build_abort,
+    build_static_error,
+    error_type,
+)
 from guppylang_internals.tys.ty import NumericType
 
 INT_T = int_t(NumericType.INT_WIDTH)
@@ -144,3 +151,29 @@ def convert_ifrombool() -> OpWithEffects:
 def convert_itobool() -> OpWithEffects:
     """Returns a `std.arithmetic.conversions.itobool` operation."""
     return _instantiate_convert_op("itobool", [int_t(0)], [ht.Bool])
+
+
+class IntDivisionOverflowCompiler(CustomCallCompiler):
+    """Return a quotient magnitude unless it cannot be represented as signed."""
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        magnitude, minimum_dividend, negative_one_divisor = args
+        and_op = ops.ExtOp(
+            hugr.std.logic.EXTENSION.get_op("And"),
+            ht.FunctionType([ht.Bool, ht.Bool], [ht.Bool]),
+            [],
+        )
+        overflow = self.builder.add_op(
+            pure(and_op), minimum_dividend, negative_one_divisor
+        )
+        conditional = self.builder.add_conditional(overflow, magnitude)
+        ok = conditional.add_case(0)
+        ok.set_outputs(*ok.inputs())
+        failed = conditional.add_case(1)
+        error = build_static_error(failed, 1, "Signed integer division overflow")
+        failed.set_outputs(
+            *build_abort(
+                failed, [INT_T], [INT_T], error, AbortKind.Panic, *failed.inputs()
+            )
+        )
+        return list(conditional.outputs())
