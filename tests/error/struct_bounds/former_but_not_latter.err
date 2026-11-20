@@ -1,0 +1,9 @@
+Error: Protocol member implementation missing (at $FILE:21:0)
+   | 
+19 | 
+20 | @guppy.struct
+21 | class Bar(Foo, Oof):
+   | ^^^^^^^^^^^^^^^^^^^^ Type `Bar` does not have required method `oof` of protocol
+   |                      `Oof`
+
+Guppy compilation failed due to 1 previous error

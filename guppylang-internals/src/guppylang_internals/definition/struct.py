@@ -32,6 +32,7 @@ from guppylang_internals.definition.util import (
     CheckedField,
     DuplicateFieldError,
     NonGuppyMethodError,
+    ProtocolHint,
     UncheckedField,
     check_not_recursive,
     extract_generic_params,
@@ -50,6 +51,7 @@ from guppylang_internals.span import (
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -69,6 +71,11 @@ class FieldFormHint(Help):
 
 
 @dataclass(frozen=True)
+class StructBaseHint(Help):
+    message: ClassVar[str] = "Structs can only use protocols as their base classes"
+
+
+@dataclass(frozen=True)
 class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 
@@ -83,9 +90,25 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
-        params = extract_generic_params(cls_def, self.name, globals, "Struct")
+        params, bases = extract_generic_params(cls_def, self.name, globals, "Struct")
 
         from guppylang.defs import GuppyDefinition
+
+        from guppylang_internals.tys.parsing import parse_bound
+
+        param_var_mapping = {param.name: param for param in params}
+        must_implement: list[ProtocolInst] = []
+        for p in bases:
+            if try_parse_generic_base(p, "Protocol"):
+                err = UnsupportedError(p, "Protocol base", singular=True)
+                err.add_sub_diagnostic(ProtocolHint(None))
+                raise GuppyError(err)
+            proto = parse_bound(p, globals, param_var_mapping, True)
+            if proto is None:
+                err = UnsupportedError(p, "Bases of this kind")
+                err.add_sub_diagnostic(StructBaseHint(None))
+                raise GuppyError(err)
+            must_implement.append(proto)
 
         fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
@@ -169,7 +192,14 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         )
 
         return ParsedStructDef(
-            self.id, self.name, cls_def, params, fields, self.frozen, link_name_prefix
+            self.id,
+            self.name,
+            cls_def,
+            params,
+            must_implement,
+            fields,
+            self.frozen,
+            link_name_prefix,
         )
 
     def check_instantiate(
@@ -184,6 +214,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
+    must_implement: Sequence[ProtocolInst]
     fields: Sequence[UncheckedField]
     frozen: bool
     link_name_prefix: str
@@ -206,7 +237,13 @@ class ParsedStructDef(TypeDef, CheckableDef):
             CheckedField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
         return CheckedStructDef(
-            self.id, self.name, self.defined_at, self.params, fields, self.frozen
+            self.id,
+            self.name,
+            self.defined_at,
+            self.params,
+            self.must_implement,
+            fields,
+            self.frozen,
         )
 
     def check_instantiate(
@@ -232,6 +269,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
+    must_implement: Sequence[ProtocolInst]
     fields: Sequence[CheckedField]
     frozen: bool
 
@@ -281,6 +319,28 @@ class CheckedStructDef(TypeDef, CompiledDef):
             effects=(),  # TODO revisit once the generated constructor invokes others
         )
         return [constructor_def]
+
+    def post_validate(self) -> None:
+        """Validation checks which can only be done after the def is registered.
+
+        Any check which isn't necessary for the definition to make computational
+        sense can go here. Any sanity check, adherence to contracts, etc…
+        """
+        # Checking that the struct implements its declared protocols. This needs
+        # to be in the post-validate phase because `check_protocol` will call
+        # back into `get_checked`. Now that the struct is registered,
+        # `get_checked` will return immediately. An earlier check (_e.g._ in the
+        # `check` method of `ParsedStructDef`) would result in an infinite
+        # recursion.
+
+        # We can only check protocols with fully instantiated type. So we create
+        # an instantiated type by instantiating the parameters with bound
+        # variables.
+        symbolic_args = [p.to_bound(i) for i, p in enumerate(self.params)]
+        symbolic = StructType(symbolic_args, self)
+
+        for proto in self.must_implement:
+            proto.check_implemented_by(symbolic, class_header_span(self.defined_at))
 
 
 def try_parse_generic_base(node: ast.expr, base_name: str) -> list[ast.expr] | None:

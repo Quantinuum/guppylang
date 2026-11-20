@@ -1,6 +1,7 @@
 import ast
 import inspect
 import linecache
+from ast import expr
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from types import FrameType
@@ -322,8 +323,13 @@ def try_parse_generic_base(node: ast.expr, base_name: str) -> list[ast.expr] | N
 
 def extract_generic_params(
     cls_def: ast.ClassDef, class_name: str, globals: Globals, class_kind: str
-) -> list[Parameter]:
-    """Extracts generic parameters from a class definition."""
+) -> tuple[list[Parameter], list[expr]]:
+    """Extracts generic parameters from a class definition.
+
+    This involves, for backward compatibility, looking for bases of the form
+    `Generic[T]` to turn them into parameters. The other bases are merely
+    returned.
+    """
     params: list[Parameter] = []
     params_span: Span | None = None
 
@@ -338,6 +344,7 @@ def extract_generic_params(
             params.append(param)
 
     base_params: list[Parameter] = []
+    remainder: list[expr] = []
     for base in cls_def.bases:
         if elems := try_parse_generic_base(base, "Generic"):
             # Complain if there's already been a `Generic[T]` parent
@@ -356,19 +363,10 @@ def extract_generic_params(
                 err.add_sub_diagnostic(RedundantParamsError.PrevSpec(params_span))
                 raise GuppyError(err)
             base_params = params_from_ast(elems, globals)
-        elif elems := try_parse_generic_base(base, "Protocol"):
-            err = UnsupportedError(base, "Protocol base", singular=True)
-            err.add_sub_diagnostic(ProtocolHint(None))
-            raise GuppyError(err)
         else:
-            err = UnsupportedError(
-                base,
-                f"{class_kind} inheritance",
-                singular=True,
-            )
-            raise GuppyError(err)
+            remainder.append(base)
 
-    return params + base_params
+    return params + base_params, remainder
 
 
 def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
