@@ -58,6 +58,7 @@ from guppylang_internals.nodes import (
     DesugaredGenerator,
     DesugaredListComp,
     FieldAccessAndDrop,
+    FunctionCoercion,
     GlobalCall,
     InoutReturnSentinel,
     LocalCall,
@@ -544,6 +545,9 @@ class BBLinearityChecker(ast.NodeVisitor):
         for arg in node.args:
             self.visit(arg)
         self._reassign_inout_args(node.tensor_ty, node)
+
+    def visit_FunctionCoercion(self, node: FunctionCoercion) -> None:
+        self.visit(node.func)
 
     def visit_PartialApply(self, node: PartialApply) -> None:
         self.visit(node.func)
