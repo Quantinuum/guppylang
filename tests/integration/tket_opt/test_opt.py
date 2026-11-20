@@ -1,10 +1,18 @@
-from guppylang import guppy
+import pytest
+
+from guppylang import OptimizationLevel, guppy
 from guppylang.std.angles import pi, angle
-from guppylang.std.quantum import qubit, cx, h, s, t, rz
+from guppylang.std.quantum import qubit, cx, h, s, t, rz, rx, x, measure
 from guppylang.std.qsystem.helios import phased_x
 from guppylang.std.builtins import array
+from guppylang.std.platform import output
 
-from pytket.passes import RemoveRedundancies, CliffordSimp, SquashRzPhasedX
+from pytket.passes import (
+    DecomposeBoxes,
+    RemoveRedundancies,
+    CliffordSimp,
+    SquashRzPhasedX,
+)
 
 from tket.passes import Normalize, PytketHugrPass, PassResult, PlatformTarget
 
@@ -120,3 +128,37 @@ def test_1q_rz_squashing2() -> None:
     new_hugr = opt_pass(hugr_graph)
     assert _count_ops(new_hugr, "Rz") == 1
     assert _count_ops(new_hugr, "PhasedX") == 1
+
+
+@pytest.mark.parametrize("level", list(OptimizationLevel))
+@pytest.mark.parametrize(
+    "roundtrip", [False, True], ids=["standard", "decompose-boxes"]
+)
+def test_measurement_fanout_through_pytket(level, roundtrip, target_platform):
+    """A later use of a measurement must survive the pytket round trip (#2423)."""
+
+    @guppy
+    def main() -> None:
+        qa = qubit()
+        x(qa)
+        a = measure(qa).read()
+
+        qb = qubit()
+        target = qubit()
+        qc = qubit()
+        cx(target, qb)
+        rx(qb, angle(1.0))
+        b = measure(qb).read()
+
+        rx(qc, angle(1.0) * (1 - 2 * int(b ^ a)))
+        c = measure(qc).read()
+
+        rx(target, angle(0.5) * (1 - 2 * int(a ^ c)))
+        rx(target, angle(0.5))
+        output("result", measure(target).read())
+
+    program = main.with_opt_level(level)
+    if roundtrip:
+        program = program.with_optimization(PytketHugrPass(DecomposeBoxes()))
+    result = program.emulator(n_qubits=4, platform=target_platform).run()
+    assert result.collated_shots()[0]["result"] == [1]
