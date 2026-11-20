@@ -9,7 +9,6 @@ Error: Incompatible signature for custom `powered` implementation (at $FILE:19:4
    |              -> None`
 
 Note: A custom `powered` implementation must have its parent function's
-signature, followed by an `array[qubit, n]` control input for controlled
-implementations, and a final `nat` exponent input.
+signature followed by a final `nat` exponent input.
 
 Guppy compilation failed due to 1 previous error

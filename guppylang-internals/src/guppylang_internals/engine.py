@@ -1,4 +1,3 @@
-import ast
 from collections import defaultdict
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager, suppress
@@ -6,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, assert_never, cast
+from typing import TYPE_CHECKING, ClassVar, NoReturn, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -93,9 +92,6 @@ from guppylang_internals.tys.printing import TypePrinter
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import Inst, is_concrete_inst
 from guppylang_internals.tys.ty import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
@@ -1088,8 +1084,7 @@ class CustomModifiedDefSignatureError(Error):
     class PoweredNote(Note):
         message: ClassVar[str] = (
             "A custom `{implementation}` implementation must have its parent "
-            "function's signature, followed by an `array[qubit, n]` control input "
-            "for controlled implementations, and a final `nat` exponent input."
+            "function's signature followed by a final `nat` exponent input."
         )
 
     class ControlledNote(Note):
@@ -1099,189 +1094,157 @@ class CustomModifiedDefSignatureError(Error):
             "the control qubits."
         )
 
+    class ControlledPoweredNote(Note):
+        message: ClassVar[str] = (
+            "A custom `{implementation}` implementation must have its parent function's"
+            " signature, followed by an `array[qubit, n]` control input for controlled "
+            "implementations, and a final `nat` exponent input."
+        )
+
 
 def _check_modified_def_signature(
     parsed_modified_def: "ParsedFunctionDef", parent_ty: FunctionType
 ) -> None:
     """Checks that a custom modified definition has a signature compatible with its
     parent:
-    - `daggered`: must have exactly the same signature as the parent.
-    - `controlled` / `ctrl_daggered`: must have the parent's signature extended
+    - If only daggered: must have exactly the same signature as the parent.
+    - If controlled: must have the parent's signature extended
       with a `array[qubit, n]` input holding the control qubits.
-    - Power variants additionally take a final runtime `nat` exponent.
+    - If powered: additionally take a final runtime `nat` exponent.
     """
     kind = CustomModifierKind(parsed_modified_def.name)
+    expected_ty = _expected_signature(parent_ty, kind)
+    remaining_ty = parsed_modified_def.ty
+    # Check that the number of inputs and params match
+    if len(remaining_ty.inputs) != len(expected_ty.inputs) or len(
+        remaining_ty.params
+    ) != len(expected_ty.params):
+        _raise_signature_error(parsed_modified_def, expected_ty, kind)
+
+    # If the modifier takes a power, the last input should be the exponent
     if kind.takes_power:
-        modified_ty = parsed_modified_def.ty
-        # Strip the exponent, then reuse the ordinary signature checks, including
-        # normalization of the control-count parameter for controlled methods.
-        exponent = FuncInput(
-            nat_type(),
-            InputFlags.NoFlags,
-            "_exponent" if parent_ty.input_names is not None else None,
+        exponent = remaining_ty.inputs[-1]
+        if exponent.ty != nat_type() or exponent.flags != InputFlags.NoFlags:
+            _raise_signature_error(parsed_modified_def, expected_ty, kind)
+        remaining_ty = FunctionType(
+            remaining_ty.inputs[:-1],
+            remaining_ty.output,
+            remaining_ty.params,
+            remaining_ty.comptime_args,
+            remaining_ty.unitary_flags,
         )
-        extended_parent = FunctionType(
-            [*parent_ty.inputs, exponent],
-            parent_ty.output,
-            parent_ty.params,
-            parent_ty.comptime_args,
-            parent_ty.unitary_flags,
-        )
-        expected = (
-            _controlled_signature(parent_ty, exponent)
-            if kind.takes_controls
-            else extended_parent
-        )
-        err = CustomModifiedDefSignatureError(
-            parsed_modified_def.defined_at, kind.value, str(expected), modified_ty
-        )
-        err.add_sub_diagnostic(CustomModifiedDefSignatureError.PoweredNote(None))
-        if (
-            not modified_ty.inputs
-            or modified_ty.inputs[-1].ty != nat_type()
-            or modified_ty.inputs[-1].flags != InputFlags.NoFlags
-        ):
-            raise GuppyError(err)
-        without_power = FunctionType(
-            modified_ty.inputs[:-1],
-            modified_ty.output,
-            modified_ty.params,
-            modified_ty.comptime_args,
-            modified_ty.unitary_flags,
-        )
-        if kind.takes_controls:
-            try:
-                _check_controlled_def_signature(
-                    without_power, parent_ty, parsed_modified_def.defined_at, kind.value
-                )
-            except GuppyError as cause:
-                raise GuppyError(err) from cause
-        elif unify(parent_ty, without_power, {}) is None:
-            raise GuppyError(err)
-        return
-    if parsed_modified_def.name == CALL_DAGGERED_METHOD:
-        daggered_ty = parsed_modified_def.ty
-        if unify(parent_ty, daggered_ty, {}) is None:
-            err = CustomModifiedDefSignatureError(
-                parsed_modified_def.defined_at,
-                implementation=CALL_DAGGERED_METHOD,
-                expected_signature=f"{parent_ty}",
-                actual_signature=daggered_ty,
-            )
-            err.add_sub_diagnostic(CustomModifiedDefSignatureError.DaggeredNote(None))
-            raise GuppyError(err)
-    elif (
-        parsed_modified_def.name == CALL_CONTROLLED_METHOD
-        or parsed_modified_def.name == CALL_CTRL_DAGGERED_METHOD
+
+    # If the modifier takes controls, the last input (before an eventual exponent)
+    # should be the control array
+    if kind.takes_controls:
+        without_controls = _strip_control_input(remaining_ty)
+        if without_controls is None:
+            _raise_signature_error(parsed_modified_def, expected_ty, kind)
+        remaining_ty = without_controls
+        # Apply the same parameter normalization to the parent.
+        parent_ty = parent_ty.instantiate_partial([None] * len(parent_ty.params))
+
+    if unify(parent_ty, remaining_ty, {}) is None:
+        _raise_signature_error(parsed_modified_def, expected_ty, kind)
+
+
+def _strip_control_input(ty: FunctionType) -> FunctionType | None:
+    """Remove the borrowed control array and its size parameter if both are valid.
+    Return None otherwise."""
+    controls = ty.inputs[-1]
+    if (
+        controls.flags != InputFlags.Inout
+        or not is_array_type(controls.ty)
+        or not is_qubit_ty(get_element_type(controls.ty))
     ):
-        _check_controlled_def_signature(
-            parsed_modified_def.ty,
-            parent_ty,
-            parsed_modified_def.defined_at,
-            parsed_modified_def.name,
-        )
-    else:
-        raise InternalGuppyError(
-            f"Unexpected modified def name: {parsed_modified_def.name}"
-        )
+        # The last input must be an array of qubits with Inout flags
+        return None
 
+    count_lenght = get_array_length(controls.ty)
+    if not isinstance(count_lenght, BoundConstVar):
+        # The control count must be a generic parameter, as in array[qubit, n].
+        return None
+    if not 0 <= count_lenght.idx < len(ty.params):
+        # Ensure the control count refers to a valid parameter. E.g, given:
+        # @guppy.unitary
+        # class Gate[n: nat]:
+        #     @guppy
+        #     def __call__(qs: array[qubit, n]) -> None: ...
+        #     @guppy
+        #     def controlled[m: nat, n: nat](
+        #         qs: array[qubit, m], controls: array[qubit, n]
+        #     ) -> None: ...
+        # The method's n shadows the class's n. It keeps index 2 from [n, m, n],
+        # but the parameter table has only two entries after resolving names.
+        return None
+    param = ty.params[count_lenght.idx]
+    if not isinstance(param, ConstParam) or param.to_bound() != ConstArg(count_lenght):
+        return None
 
-def _controlled_signature(
-    parent_ty: FunctionType, exponent: FuncInput | None = None
-) -> FunctionType:
-    """Expected signature for a control-parameterized custom implementation."""
-    control_param = ConstParam(len(parent_ty.params), "n", nat_type())
-    control_input = FuncInput(
-        array_type(
-            qubit_ty(),
-            BoundConstVar(control_param.ty, control_param.name, control_param.idx),
-        ),
-        InputFlags.Inout,
-        "_controls" if parent_ty.input_names is not None else None,
+    # The control parameter can appear anywhere in the declaration. Shift it
+    # beyond the parent's parameters so other references to it cannot match.
+    args: list[ConstArg | None] = [None] * len(ty.params)
+    args[count_lenght.idx] = param.to_bound(len(ty.params) - 1)
+    normalized = ty.instantiate_partial(args)
+    return FunctionType(
+        normalized.inputs[:-1],
+        normalized.output,
+        normalized.params,
+        normalized.comptime_args,
+        normalized.unitary_flags,
     )
-    inputs = [*parent_ty.inputs, control_input]
-    if exponent is not None:
-        inputs.append(exponent)
+
+
+def _expected_signature(
+    parent_ty: FunctionType, kind: CustomModifierKind
+) -> FunctionType:
+    """Build the expected signature for a custom modifier method."""
+    # Input names are not part of a signature and may collide with modifier inputs.
+    inputs = [FuncInput(inp.ty, inp.flags) for inp in parent_ty.inputs]
+    params = list(parent_ty.params)
+    if kind.takes_controls:
+        control_param = ConstParam(len(params), "n", nat_type())
+        params.append(control_param)
+        inputs.append(
+            FuncInput(
+                array_type(qubit_ty(), control_param.to_bound().const),
+                InputFlags.Inout,
+            )
+        )
+    if kind.takes_power:
+        inputs.append(FuncInput(nat_type(), InputFlags.NoFlags))
     return FunctionType(
         inputs,
         parent_ty.output,
-        [*parent_ty.params, control_param],
+        params,
         parent_ty.comptime_args,
         parent_ty.unitary_flags,
     )
 
 
-def _check_controlled_def_signature(
-    modified_ty: FunctionType,
-    parent_ty: FunctionType,
-    defined_at: ast.FunctionDef,
-    implementation: str,
-) -> None:
-
-    def signature_error() -> GuppyError:
-        expected_signature = str(_controlled_signature(parent_ty))
-        err = CustomModifiedDefSignatureError(
-            defined_at,
-            implementation=implementation,
-            expected_signature=expected_signature,
-            actual_signature=modified_ty,
+def _raise_signature_error(
+    parsed_modified_def: "ParsedFunctionDef",
+    expected_ty: FunctionType,
+    modifier_kind: CustomModifierKind,
+) -> NoReturn:
+    err = CustomModifiedDefSignatureError(
+        parsed_modified_def.defined_at,
+        implementation=modifier_kind.value,
+        expected_signature=str(expected_ty),
+        actual_signature=parsed_modified_def.ty,
+    )
+    if modifier_kind.takes_controls and modifier_kind.takes_power:
+        err.add_sub_diagnostic(
+            CustomModifiedDefSignatureError.ControlledPoweredNote(None)
         )
+    elif modifier_kind.takes_controls:
         err.add_sub_diagnostic(CustomModifiedDefSignatureError.ControlledNote(None))
-        return GuppyError(err)
+    elif modifier_kind.takes_power:
+        err.add_sub_diagnostic(CustomModifiedDefSignatureError.PoweredNote(None))
+    else:
+        err.add_sub_diagnostic(CustomModifiedDefSignatureError.DaggeredNote(None))
 
-    if (
-        len(modified_ty.inputs) != len(parent_ty.inputs) + 1
-        or len(modified_ty.params) != len(parent_ty.params) + 1
-    ):
-        # Wrong number of inputs or parameters
-        raise signature_error()
-
-    last_input_ty = modified_ty.inputs[-1].ty
-    if (
-        not is_array_type(last_input_ty)
-        or not is_qubit_ty(get_element_type(last_input_ty))
-        or modified_ty.inputs[-1].flags != InputFlags.Inout
-    ):
-        # The last input must be an array of qubits with Inout flags
-        raise signature_error()
-
-    control_count = get_array_length(last_input_ty)
-    if not isinstance(control_count, BoundConstVar):
-        # The array length must be a bound constant variable
-        # (i.e. the array length is generic)
-        raise signature_error()
-
-    assert 0 <= control_count.idx < len(modified_ty.params)
-    control_param = modified_ty.params[control_count.idx]
-    if not isinstance(
-        control_param, ConstParam
-    ) or control_param.to_bound() != ConstArg(control_count):
-        # `control_count` is the number of control qubits;
-        # `control_param` is the parameter in the implementation's signature.
-        # `control_param` must be a constant parameter with the same type and
-        # index as `control_count`.
-        raise signature_error()
-
-    # Renumber the remaining parameters, keeping control references
-    # outside their range so they cannot match a parent parameter.
-    normalized_ty = modified_ty.instantiate_partial(
-        [
-            param.to_bound(len(parent_ty.params)) if i == control_count.idx else None
-            for i, param in enumerate(modified_ty.params)
-        ]
-    )
-    ty_wo_controllers = FunctionType(
-        normalized_ty.inputs[:-1],
-        normalized_ty.output,
-        normalized_ty.params,
-        normalized_ty.comptime_args,
-        normalized_ty.unitary_flags,
-    )
-    # Apply the same normalization without removing parent parameters.
-    normalized_parent_ty = parent_ty.instantiate_partial([None] * len(parent_ty.params))
-    if unify(ty_wo_controllers, normalized_parent_ty, {}) is None:
-        # The function type without controllers must unify with the __call__ type
-        raise signature_error()
+    raise GuppyError(err)
 
 
 ENGINE: CompilationEngine = CompilationEngine()
