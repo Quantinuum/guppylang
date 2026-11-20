@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.1...guppylang-internals-v1.2.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* Ensure that call graph is not overwritten during checking (#2559)([ed85d0a](https://github.com/Quantinuum/guppylang/commit/ed85d0a667af41acfd09fdcf24c2252a725aee1b))
+
 ## [1.2.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.0...guppylang-internals-v1.2.1) (2026-11-11)
 
 
