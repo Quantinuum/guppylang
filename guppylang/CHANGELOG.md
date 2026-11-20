@@ -14,6 +14,13 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
 
+## [1.2.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.1...guppylang-v1.2.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* Recompute used extensions after applying optimisation passes (#2557)([1697956](https://github.com/Quantinuum/guppylang/commit/16979560ecc4da2bc243df4b0be24789a3ead6b2))
+
 ## [1.2.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.0...guppylang-v1.2.1) (2026-11-11)
 
 
