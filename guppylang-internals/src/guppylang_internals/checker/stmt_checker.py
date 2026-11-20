@@ -54,6 +54,7 @@ from guppylang_internals.checker.expr_checker import (
     check_place_assignable,
     register_effects,
     synthesize_comprehension,
+    try_coerce_to,
 )
 from guppylang_internals.checker.modifier import ModifierContext
 from guppylang_internals.engine import ENGINE
@@ -66,6 +67,7 @@ from guppylang_internals.error import (
 from guppylang_internals.nodes import (
     AnyUnpack,
     ArrayUnpack,
+    CoercedAssign,
     DesugaredArrayComp,
     IterableUnpack,
     MakeIter,
@@ -159,8 +161,8 @@ class StmtChecker(AstVisitor[BBStatement]):
 
     @_check_assign.register
     def _check_field_assign(
-        self, lhs: ast.Attribute, _rhs: ast.expr, rhs_ty: Type
-    ) -> PlaceNode:
+        self, lhs: ast.Attribute, rhs: ast.expr, rhs_ty: Type
+    ) -> PlaceNode | CoercedAssign:
         # Unfortunately, the `attr` is just a string,  not an AST node, so we
         # have to compute its span by hand. This is fine since linebreaks are
         # not allowed in the identifier following the `.`
@@ -171,11 +173,19 @@ class StmtChecker(AstVisitor[BBStatement]):
         if not isinstance(struct_ty, StructType) or attr not in struct_ty.field_dict:
             raise GuppyTypeError(AttributeNotFoundError(attr_span, struct_ty, attr))
         field = struct_ty.field_dict[attr]
-        # TODO: In the future, we could infer some type args here
+        # Coerce a synthetic input rather than the original RHS. This also works
+        # for fields nested in an unpacking pattern, where the incoming value is
+        # supplied by the assignment compiler rather than an expression node.
+        rhs_var = with_loc(
+            rhs, with_type(rhs_ty, PlaceNode(Variable(next(tmp_vars), rhs_ty, rhs)))
+        )
+        coerced = None
         if field.ty != rhs_ty:
-            # TODO: Get hold of a span for the RHS and use a regular `TypeMismatchError`
-            #  instead (maybe with a custom hint).
-            raise GuppyTypeError(AssignFieldTypeMismatchError(attr_span, rhs_ty, field))
+            coerced = try_coerce_to(rhs_ty, field.ty, rhs_var, self.ctx)
+            if coerced is None:
+                raise GuppyTypeError(
+                    AssignFieldTypeMismatchError(attr_span, rhs_ty, field)
+                )
         if not isinstance(value, PlaceNode):
             # For now we complain if someone tries to assign to something that is not a
             # place, e.g. `f().a = 4`. This would only make sense if there is another
@@ -189,7 +199,12 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise GuppyTypeError(StructImmutableError(lhs, struct_ty))
         place = FieldAccess(value.place, struct_ty.field_dict[attr], lhs)
         place = check_place_assignable(place, self.ctx, lhs, "assignable")
-        return with_loc(lhs, with_type(rhs_ty, PlaceNode(place=place)))
+        target = with_loc(lhs, with_type(field.ty, PlaceNode(place=place)))
+        if coerced is not None:
+            return with_loc(
+                lhs, with_type(rhs_ty, CoercedAssign(target, coerced, rhs_var))
+            )
+        return target
 
     @_check_assign.register
     def _check_subscript_assign(

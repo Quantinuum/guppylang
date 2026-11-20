@@ -20,6 +20,7 @@ from guppylang_internals.nodes import (
     ArrayUnpack,
     CheckedModifiedBlock,
     CheckedNestedFunctionDef,
+    CoercedAssign,
     IterableUnpack,
     PlaceNode,
     TupleUnpack,
@@ -70,6 +71,12 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
     def _assign(self, lhs: ast.expr, port: Wire) -> None:
         """Updates the local DFG with assignments."""
         raise InternalGuppyError("Invalid assign pattern in compiler")
+
+    @_assign.register
+    def _assign_coerced(self, lhs: CoercedAssign, port: Wire) -> None:
+        self.dfg[lhs.rhs_var.place] = port
+        coerced = self.expr_compiler.compile(lhs.value, self.dfg)
+        self._assign(lhs.target, coerced)
 
     @_assign.register
     def _assign_place(self, lhs: PlaceNode, port: Wire) -> None:
