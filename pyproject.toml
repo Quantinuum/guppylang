@@ -73,7 +73,9 @@ exclude_also = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--benchmark-disable -m 'not test_exported_hugrs'"  # benchmarks run explicitly with `just bench`
+# benchmarks run explicitly with `just bench`;
+# nb_regression plugin is registered late (in conftest.py) to allow warning suppresion TODO remove once fixed
+addopts = "--benchmark-disable -m 'not test_exported_hugrs' -p no:nb_regression"
 markers = [
   "test_exported_hugrs",
   "execution: auto-applied to integration tests that run compiled programs through emulator fixtures",
@@ -81,4 +83,5 @@ markers = [
 filterwarnings = [
   "ignore::DeprecationWarning",  # TODO remove after removing guppy.compile()
   "ignore::SyntaxWarning",  # Python 3.14 complains about guppy tuple callables
+  'ignore:Field .* type could not be converted\.:UserWarning:pytest_notebook\.utils',
 ]
