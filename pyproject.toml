@@ -16,7 +16,8 @@ lint = [
 test = [
   "ipykernel>=6.29.5,<8",
   "miette-py",
-  "pytest>=8.4.2",
+  # Cap below 9.2.0 due to https://github.com/pytest-dev/pytest-forked/issues/113
+  "pytest>=8.4.2,<9.2.0",
   "pytest-benchmark>=5.1.0",
   "pytest-codspeed>=5.0.3",
   "pytest-cov>=5.0.0,<8",

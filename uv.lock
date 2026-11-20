@@ -26,7 +26,7 @@ dev = [
     { name = "mypy", specifier = "~=2.1.0" },
     { name = "networkx", specifier = ">=2.6,<4" },
     { name = "pre-commit", specifier = ">=4.6.2,<5" },
-    { name = "pytest", specifier = ">=8.4.2" },
+    { name = "pytest", specifier = ">=8.4.2,<9.2.0" },
     { name = "pytest-benchmark", specifier = ">=5.1.0" },
     { name = "pytest-codspeed", specifier = ">=5.0.3" },
     { name = "pytest-cov", specifier = ">=5.0.0,<8" },
@@ -56,7 +56,7 @@ lint = [
 test = [
     { name = "ipykernel", specifier = ">=6.29.5,<8" },
     { name = "miette-py", editable = "miette-py" },
-    { name = "pytest", specifier = ">=8.4.2" },
+    { name = "pytest", specifier = ">=8.4.2,<9.2.0" },
     { name = "pytest-benchmark", specifier = ">=5.1.0" },
     { name = "pytest-codspeed", specifier = ">=5.0.3" },
     { name = "pytest-cov", specifier = ">=5.0.0,<8" },
