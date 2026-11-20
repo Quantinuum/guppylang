@@ -1723,3 +1723,22 @@ def test_custom_modifier_accepts_docstring(validate) -> None:
         discard(q)
 
     validate(main.compile())
+
+
+def test_control_index_not_checked_with_inner_dagger(validate):
+    @guppy
+    def nested(cs: array[qubit, 2], q: qubit) -> None:
+        with control(cs[int(measure(qubit()).read())]):
+            with dagger:
+                h(q)
+
+    validate(nested.compile_function())
+
+
+def test_control_index_not_checked_with_same_block_dagger(validate):
+    @guppy
+    def nested(cs: array[qubit, 2], q: qubit) -> None:
+        with dagger, control(cs[int(measure(qubit()).read())]):
+            h(q)
+
+    validate(nested.compile_function())
