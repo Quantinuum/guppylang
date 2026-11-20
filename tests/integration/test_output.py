@@ -1,3 +1,5 @@
+import pytest
+
 from guppylang import guppy
 from guppylang.std.builtins import array, comptime, nat, output, result
 from tests.util import compile_guppy
@@ -150,3 +152,115 @@ def test_deprecated_result_alias_still_compiles(validate):
         result("foo", x)
 
     validate(main)
+
+
+def test_scalar_numeric_output_ops(validate):
+    from hugr import ops
+
+    @guppy
+    def main(w: nat, x: int, y: float, z: bool) -> None:
+        output("nat", w)
+        output("int", x)
+        output("float", y)
+        output("bool", z)
+
+    package = main.with_minimal_opt().compile_function()
+    validate(package)
+    names = [
+        data.op.op_def().name
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().name.startswith("result_")
+    ]
+    assert names == ["result_uint", "result_int", "result_f64", "result_bool"]
+
+
+def test_output_integer_literal_remains_signed(validate):
+    from hugr import ops
+
+    @guppy
+    def main() -> None:
+        output("literal", 1)
+
+    package = main.with_minimal_opt().compile()
+    validate(package)
+    names = [
+        data.op.op_def().name
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().name.startswith("result_")
+    ]
+    assert names == ["result_int"]
+
+
+@pytest.mark.execution
+def test_output_max_nat(target_platform):
+    @guppy
+    def main() -> None:
+        value: nat = 18446744073709551615
+        output("value", value)
+
+    results = main.emulator(0, platform=target_platform).coinflip_sim().run()
+    assert results.collated_shots() == [{"value": [18446744073709551615]}]
+
+
+@pytest.mark.execution
+def test_output_max_nat_array_item(target_platform):
+    @guppy
+    def main() -> None:
+        value: nat = 18446744073709551615
+        values = array(value)
+        output("value", values[0])
+
+    results = main.emulator(0, platform=target_platform).coinflip_sim().run()
+    assert results.collated_shots() == [{"value": [18446744073709551615]}]
+
+
+@pytest.mark.execution
+def test_output_max_nat_array(target_platform):
+    @guppy
+    def main() -> None:
+        value: nat = 18446744073709551615
+        values = array(value)
+        output("values", values)
+
+    results = main.emulator(0, platform=target_platform).coinflip_sim().run()
+    assert results.collated_shots() == [{"values": [[18446744073709551615]]}]
+
+
+@pytest.mark.execution
+def test_output_checked_nat_result(target_platform):
+    @guppy
+    def main() -> None:
+        value: nat = 18446744073709551615
+        result: None = output("value", value)
+
+    results = main.emulator(0, platform=target_platform).coinflip_sim().run()
+    assert results.collated_shots() == [{"value": [18446744073709551615]}]
+
+
+def test_output_negative_int(run_int_fn):
+    @guppy
+    def main() -> int:
+        value = -1
+        output("value", value)
+        return value
+
+    run_int_fn(main, -1)
+
+
+@pytest.mark.execution
+def test_output_nat_call_evaluated_once(target_platform):
+    @guppy
+    def value() -> nat:
+        output("called", True)
+        return 18446744073709551615
+
+    @guppy
+    def main() -> None:
+        output("value", value())
+
+    results = main.emulator(0, platform=target_platform).coinflip_sim().run()
+    assert results.collated_shots() == [
+        {"called": [True], "value": [18446744073709551615]}
+    ]
