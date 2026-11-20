@@ -71,6 +71,7 @@ bench-upload *BENCHER_FLAGS:
            --benchmark-only \
            --benchmark-quiet \
            --benchmark-json="{{NOW}}-pytest-benchmark.json" \
+           -p no:nb_regression
            -k "compile"
     uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
@@ -87,6 +88,7 @@ bench-compare *BENCHER_FLAGS:
            --benchmark-only \
            --benchmark-quiet \
            --benchmark-json="{{NOW}}-pytest-benchmark.json" \
+           -p no:nb_regression
            -k "compile"
     uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
