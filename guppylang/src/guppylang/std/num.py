@@ -11,9 +11,6 @@ import hugr.std.int
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.checker import DunderChecker, ReversingChecker
-from guppylang_internals.std._internal.compiler.arithmetic import (
-    IntDivisionOverflowCompiler,
-)
 from guppylang_internals.std._internal.compiler.prelude import UnwrapOpCompiler
 from guppylang_internals.std._internal.util import (
     external_op,
@@ -243,11 +240,7 @@ class int:
     @guppy(daggerable=True)
     @no_type_check
     def __divmod__(self: int, other: int) -> tuple[int, int]:
-        quotient, remainder = _int_divmod_signed_unchecked(self, other)
-        quotient = _checked_int_division(
-            quotient, self == -9_223_372_036_854_775_808, other == -1
-        )
-        return quotient, remainder
+        return _int_divmod_signed(self, other)
 
     @hugr_op(int_op("ieq"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __eq__(self: int, other: int) -> bool: ...
@@ -294,7 +287,7 @@ class int:
     @guppy(daggerable=True)
     @no_type_check
     def __mod__(self: int, other: int) -> int:
-        _, remainder = _int_divmod_signed_unchecked(self, other)
+        _, remainder = _int_divmod_signed(self, other)
         return remainder
 
     @hugr_op(int_op("imul"), unitary_flags=UnitaryFlags.Dagger, effects=())
@@ -437,30 +430,21 @@ class int:
 
 @guppy(daggerable=True)
 @no_type_check
-def _int_divmod_signed_unchecked(dividend: int, divisor: int) -> tuple[int, int]:
-    # Magnitudes are unsigned bit patterns, including abs(-2**63). Work in
-    # magnitudes first so negating the dividend cannot overflow.
-    modulus = abs(divisor)
-    quotient, remainder = _int_divmod_unsigned(abs(dividend), modulus)
-    # Guppy right shifts are logical. These masks avoid control flow and
-    # bool-to-int conversion, preserving daggerability of integer arithmetic.
-    different_signs = (dividend ^ divisor) >> 63
-    # Floor division rounds away from zero exactly when the signs differ
-    # and the unsigned remainder is nonzero.
+def _int_divmod_signed(dividend: int, divisor: int) -> tuple[int, int]:
+    # Logical shifts extract sign bits as 0 or 1.
+    dividend_sign = dividend >> 63
+    divisor_sign = divisor >> 63
+    # Wrapping two's-complement negation also handles the magnitude of MIN_INT.
+    magnitude = (dividend ^ -dividend_sign) + dividend_sign
+    modulus = (divisor ^ -divisor_sign) + divisor_sign
+    quotient, remainder = _int_divmod_unsigned(magnitude, modulus)
+    different_signs = dividend_sign ^ divisor_sign
+    # Round down only for opposite signs and a nonzero remainder.
     adjustment = different_signs * ((remainder | -remainder) >> 63)
     quotient = quotient * (1 - 2 * different_signs) - adjustment
     remainder = remainder + adjustment * (modulus - 2 * remainder)
-    return quotient, remainder * (1 - 2 * (divisor >> 63))
-
-
-@custom_function(
-    IntDivisionOverflowCompiler(),
-    unitary_flags=UnitaryFlags.Dagger,
-    effects=[Effect.PANIC],
-)
-def _checked_int_division(
-    magnitude: int, minimum_dividend: bool, negative_one_divisor: bool
-) -> int: ...
+    # The remainder has the divisor's sign.
+    return quotient, remainder * (1 - 2 * divisor_sign)
 
 
 @hugr_op(int_op("idivmod_u"), unitary_flags=UnitaryFlags.Dagger, effects=())

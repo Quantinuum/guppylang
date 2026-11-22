@@ -1723,3 +1723,28 @@ def test_custom_modifier_accepts_docstring(validate) -> None:
         discard(q)
 
     validate(main.compile())
+
+
+@pytest.mark.parametrize(
+    ("x", "y"),
+    [
+        (7, -3),
+        (-9_223_372_036_854_775_808, -1),
+        (-9_223_372_036_854_775_808, 3),
+        (-9_223_372_036_854_775_808, -3),
+        (1, -9_223_372_036_854_775_808),
+        (9_223_372_036_854_775_807, -9_223_372_036_854_775_808),
+    ],
+)
+def test_signed_division_in_dagger(validate, run_int_fn, x: int, y: int) -> None:
+    @guppy
+    def main(x: int, y: int) -> int:
+        q = qubit()
+        with dagger:
+            z = x // y
+            rz(q, angle(float(z % 4)))
+        discard(q)
+        return 1
+
+    validate(main.compile_function())
+    run_int_fn(main, 1, num_qubits=1, args=[x, y])

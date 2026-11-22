@@ -542,7 +542,7 @@ def test_signed_divisor(run_int_fn, x: int, y: int) -> None:
 
 
 @pytest.mark.parametrize("operator", ["floordiv", "mod", "divmod"])
-def test_signed_division_panics(run_int_fn, operator: str) -> None:
+def test_signed_division_wrapping_and_zero_divisor(run_int_fn, operator: str) -> None:
     @guppy(daggerable=True)
     def quotient(x: int, y: int) -> int:
         return x // y
@@ -557,20 +557,16 @@ def test_signed_division_panics(run_int_fn, operator: str) -> None:
         return q
 
     fn = {"floordiv": quotient, "mod": remainder, "divmod": pair}[operator]
-    if operator == "mod":
-        run_int_fn(fn, 0, args=[-9_223_372_036_854_775_808, -1])
-    else:
-        with pytest.raises(EmulatorError, match="Signed integer division overflow"):
-            run_int_fn(fn, 0, args=[-9_223_372_036_854_775_808, -1])
+    expected = 0 if operator == "mod" else -9_223_372_036_854_775_808
+    run_int_fn(fn, expected, args=[-9_223_372_036_854_775_808, -1])
     with pytest.raises(EmulatorError, match="Attempted division by 0"):
         run_int_fn(fn, 0, args=[7, 0])
 
 
-def test_signed_division_panic_effects() -> None:
+def test_signed_division_effects() -> None:
     from guppylang_internals.analysis.callgraph import CallGraph
     from guppylang_internals.analysis.effects import compute_effects
     from guppylang_internals.engine import ENGINE
-    from guppylang_internals.tys import Effect
 
     @guppy(daggerable=True)
     def signed(x: int, y: int) -> int:
@@ -586,29 +582,10 @@ def test_signed_division_panic_effects() -> None:
 
     signed.check()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert effects[signed.id, ()] == frozenset([Effect.PANIC])
+    assert effects[signed.id, ()] == frozenset()
     remainder.check()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
     assert effects[remainder.id, ()] == frozenset()
     unsigned.check()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
     assert effects[unsigned.id, ()] == frozenset()
-
-
-def test_signed_division_in_dagger(validate, run_int_fn) -> None:
-    from guppylang.std.builtins import dagger
-    from guppylang.std.quantum import discard, qubit, rz
-
-    @guppy
-    def main(x: int, y: int) -> int:
-        q = qubit()
-        with dagger:
-            z = x // y
-            rz(q, angle(float(z)))
-        discard(q)
-        return 1
-
-    validate(main.compile_function())
-    run_int_fn(main, 1, num_qubits=1, args=[7, -3])
-    with pytest.raises(EmulatorError, match="Signed integer division overflow"):
-        run_int_fn(main, 0, num_qubits=1, args=[-9_223_372_036_854_775_808, -1])
