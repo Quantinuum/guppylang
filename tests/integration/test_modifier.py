@@ -1748,3 +1748,22 @@ def test_signed_division_in_dagger(validate, run_int_fn, x: int, y: int) -> None
 
     validate(main.compile_function())
     run_int_fn(main, 1, num_qubits=1, args=[x, y])
+
+
+def test_control_index_not_checked_with_inner_dagger(validate):
+    @guppy
+    def nested(cs: array[qubit, 2], q: qubit) -> None:
+        with control(cs[int(measure(qubit()).read())]):
+            with dagger:
+                h(q)
+
+    validate(nested.compile_function())
+
+
+def test_control_index_not_checked_with_same_block_dagger(validate):
+    @guppy
+    def nested(cs: array[qubit, 2], q: qubit) -> None:
+        with dagger, control(cs[int(measure(qubit()).read())]):
+            h(q)
+
+    validate(nested.compile_function())

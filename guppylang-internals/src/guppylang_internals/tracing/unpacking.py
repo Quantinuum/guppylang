@@ -4,9 +4,9 @@ from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.comptime_errors import (
     UnsupportedPythonValueError,
 )
-from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
+from guppylang_internals.checker.expr_checker import python_value_to_guppy
 from guppylang_internals.error import GuppyComptimeError, GuppyError, InternalGuppyError
-from guppylang_internals.tracing.frozenlist import frozenlist
+from guppylang_internals.tracing.error_on_mutate_list import ErrorOnMutateList
 from guppylang_internals.tracing.object import (
     GuppyEnumObject,
     GuppyObject,
@@ -94,7 +94,7 @@ def unpack_guppy_object(
                     unpack_guppy_object(GuppyObject(elem_ty, wire), recorder, frozen)
                     for wire in elems
                 ]
-                return frozenlist(obj_list) if frozen else obj_list
+                return ErrorOnMutateList(obj_list) if frozen else obj_list
             else:
                 # Cannot handle generic sizes
                 return obj
@@ -155,10 +155,11 @@ def guppy_object_from_py(
             # TODO: Propagate type information?
             raise GuppyComptimeError("Cannot infer the type of empty list")
         case v:
-            ty = python_value_to_guppy_type(v, node)
-            if ty is None:
+            tyval = python_value_to_guppy(v, node)
+            if tyval is None:
                 raise GuppyError(UnsupportedPythonValueError(node, type(v)))
-            return GuppyObject(ty, recorder.record_load_val(v, ty, node))
+            ty, val = tyval
+            return GuppyObject(ty, recorder.record_load_val(val, ty, node))
 
 
 def update_packed_value(

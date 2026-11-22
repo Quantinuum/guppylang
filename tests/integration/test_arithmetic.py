@@ -581,11 +581,17 @@ def test_signed_division_effects() -> None:
         return x // y
 
     signed.check()
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    effects = compute_effects(
+        CallGraph(ENGINE.call_info.call_graph), ENGINE.call_info.func_effects
+    )
     assert effects[signed.id, ()] == frozenset()
     remainder.check()
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    effects = compute_effects(
+        CallGraph(ENGINE.call_info.call_graph), ENGINE.call_info.func_effects
+    )
     assert effects[remainder.id, ()] == frozenset()
     unsigned.check()
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    effects = compute_effects(
+        CallGraph(ENGINE.call_info.call_graph), ENGINE.call_info.func_effects
+    )
     assert effects[unsigned.id, ()] == frozenset()

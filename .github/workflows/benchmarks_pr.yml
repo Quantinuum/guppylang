@@ -59,4 +59,4 @@ jobs:
         uses: CodSpeedHQ/action@v5
         with:
           mode: simulation
-          run: uv run pytest tests/ --codspeed -k "not executable" -v --durations=0
+          run: uv run pytest tests/ --codspeed -k "not executable" -p no:nb_regression -v --durations=0

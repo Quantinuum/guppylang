@@ -10,9 +10,9 @@ To program in a platform-agnostic way, use the more abstract `std.quantum` modul
 Gates and operations in this module are automatically decomposed to the target
 platform when compiling for emulation or hardware execution.
 
-.. deprecated::
-    ``guppylang.std.qsystem`` is a deprecated alias for
-    ``guppylang.std.qsystem.helios``. Import from that module directly.
+.. deprecated:: 1.0
+    :py:mod:`guppylang.std.qsystem` is a deprecated alias for
+    :py:mod:`guppylang.std.qsystem.helios`. Import from that module directly.
 """
 
 from guppylang.std.qsystem.helios import (
