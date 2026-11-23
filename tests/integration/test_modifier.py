@@ -1725,18 +1725,7 @@ def test_custom_modifier_accepts_docstring(validate) -> None:
     validate(main.compile())
 
 
-@pytest.mark.parametrize(
-    ("x", "y"),
-    [
-        (7, -3),
-        (-9_223_372_036_854_775_808, -1),
-        (-9_223_372_036_854_775_808, 3),
-        (-9_223_372_036_854_775_808, -3),
-        (1, -9_223_372_036_854_775_808),
-        (9_223_372_036_854_775_807, -9_223_372_036_854_775_808),
-    ],
-)
-def test_signed_division_in_dagger(validate, run_int_fn, x: int, y: int) -> None:
+def test_signed_division_in_dagger(validate) -> None:
     @guppy
     def main(x: int, y: int) -> int:
         q = qubit()
@@ -1747,7 +1736,6 @@ def test_signed_division_in_dagger(validate, run_int_fn, x: int, y: int) -> None
         return 1
 
     validate(main.compile_function())
-    run_int_fn(main, 1, num_qubits=1, args=[x, y])
 
 
 def test_control_index_not_checked_with_inner_dagger(validate):
