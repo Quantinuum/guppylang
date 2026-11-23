@@ -1,5 +1,6 @@
 import builtins
 import re
+import sys
 
 import pytest
 
@@ -32,7 +33,15 @@ def test_float(validate):
 
         # In particular, `builtins.float` doesn't work for GuppyObjects, but our mocked
         # version does
-        err = re.escape("GuppyObject.__float__ returned non-float (type GuppyObject)")
+        if sys.version_info >= (3, 15):
+            obj_qual = "guppylang_internals.tracing.object.GuppyObject"
+            err = re.escape(
+                f"{obj_qual}.__float__() must return a float, not {obj_qual}"
+            )
+        else:
+            err = re.escape(
+                "GuppyObject.__float__ returned non-float (type GuppyObject)"
+            )
         with pytest.raises(TypeError, match=err):
             builtins.float(x)
         return float(x)
@@ -70,7 +79,11 @@ def test_int(validate):
 
         # In particular, `builtins.int` doesn't work for GuppyObjects, but our mocked
         # version does
-        err = re.escape("__int__ returned non-int (type GuppyObject)")
+        if sys.version_info >= (3, 15):
+            obj_qual = "guppylang_internals.tracing.object.GuppyObject"
+            err = re.escape(f"{obj_qual}.__int__() must return an int, not {obj_qual}")
+        else:
+            err = re.escape("GuppyObject.__int__ returned non-float (type GuppyObject)")
         with pytest.raises(TypeError, match=err):
             builtins.int(x)
         return int(x)
