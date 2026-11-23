@@ -1,0 +1,9 @@
+Error: Higher-order overloaded function (at $FILE:23:12)
+   | 
+21 | @guppy
+22 | def main() -> None:
+23 |     consume(overloaded)
+   |             ^^^^^^^^^^ Overloaded function `overloaded` may not be used as a
+   |                        higher-order value
+
+Guppy compilation failed due to 1 previous error

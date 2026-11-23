@@ -8,6 +8,9 @@ from guppylang.experimental import (
     enable_experimental_features,
 )
 
+# Registered late to allow warning suppression, see pyproject.toml
+pytest_plugins = ["pytest_notebook.plugin"]
+
 
 def pytest_addoption(parser):
     def dir_path(s):

@@ -13,7 +13,7 @@ from hugr import ops as hops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
+from guppylang_internals.ast_util import AstNode, AstVisitor, frozenlist, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
@@ -815,7 +815,7 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: ToHugrContext) -> hv.Value |
             ]
             if doesnt_contain_none(vs):
                 return hv.Tuple(*vs)
-        case list(elts):
+        case frozenlist(elts):
             assert is_frozenarray_type(exp_ty)
             elem_ty = get_element_type(exp_ty)
             vs = [python_value_to_hugr(elt, elem_ty, ctx) for elt in elts]
