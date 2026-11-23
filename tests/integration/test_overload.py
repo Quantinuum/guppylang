@@ -1,10 +1,18 @@
+from typing import TYPE_CHECKING
 from guppylang import qubit, array
 from guppylang.decorator import guppy
+from guppylang.std.lang import Copy
+from guppylang.std.option import Option, some
+from guppylang.emulator import EmulatorError
 from guppylang.std.quantum import discard
 from guppylang_internals.decorator import custom_function, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.util import int_op
 from pytket import Circuit
+import pytest
+
+if TYPE_CHECKING:
+    from guppylang.std.builtins import owned
 
 
 def test_basic_overload(validate):
@@ -141,10 +149,10 @@ def test_comptime_overload_call(validate):
 def test_everything_can_be_overloaded(validate):
     """Test that all kinds of functions can be overloaded."""
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), effects=())
     def custom(a: int) -> int: ...
 
-    @hugr_op(int_op("iadd"))
+    @hugr_op(int_op("iadd"), effects=())
     def my_hugr_op(a: int, b: int) -> int: ...
 
     @guppy.declare
@@ -215,3 +223,39 @@ def test_comptime_linearity_check(validate):
             discard(q)
 
     validate(main.compile_function())
+
+
+def test_struct_dunder(run_int_fn):
+
+    @guppy.struct
+    class Holder[T]:
+        a: Option[T]
+
+        @guppy
+        def __linear__[T](self: "Holder[T] @ owned") -> bool:
+            self.a.unwrap_nothing()
+            return False
+
+        @guppy
+        def __classical__[C: Copy](self: "Holder[C]") -> bool:
+            return self.a.is_some()
+
+        @guppy.overload(__classical__, __linear__)
+        def __consume_as_bool__(self) -> bool: ...
+
+    @guppy
+    def main() -> int:
+        x = Holder(some(3))
+        return 42 if x else -1
+
+    run_int_fn(main, expected=42)
+
+    @guppy
+    def main2() -> int:
+        x = Holder(some(qubit()))
+        if x:
+            return 42
+        return 1
+
+    with pytest.raises(EmulatorError, match=r"Option.unwrap: value is `Some`"):
+        main2.emulator(1).run()

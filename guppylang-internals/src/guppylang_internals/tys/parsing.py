@@ -16,12 +16,12 @@ from guppylang_internals.checker.errors.type_errors import (
     DontReturnProtocol,
     DontUseProtocolSugar,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, RequiresMonomorphizationError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolDef,
@@ -32,7 +32,7 @@ from guppylang_internals.tys.builtin import (
     SelfTypeDef,
     bool_type,
 )
-from guppylang_internals.tys.const import ConstValue
+from guppylang_internals.tys.const import ComptimeConstValue, ConstValue
 from guppylang_internals.tys.errors import (
     ComptimeArgShadowError,
     FlagNotAllowedError,
@@ -54,6 +54,7 @@ from guppylang_internals.tys.errors import (
 from guppylang_internals.tys.param import ConstParam, Parameter, TypeParam
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.ty import (
+    ExistentialTypeVar,
     FuncInput,
     FunctionType,
     InputFlags,
@@ -76,6 +77,16 @@ class UnrecognisedBound(Error):
 
 
 @dataclass(frozen=True)
+class IncompatibleCallableBounds(Error):
+    title: ClassVar[str] = "Incompatible callable bounds"
+    span_label: ClassVar[str] = (
+        "Expected callable signature `{expected}`, got `{actual}`"
+    )
+    expected: FunctionType
+    actual: FunctionType
+
+
+@dataclass(frozen=True)
 class TypeParsingCtx:
     """Context for parsing types from AST nodes."""
 
@@ -90,19 +101,22 @@ class TypeParsingCtx:
 
     #: Whether a previously unseen type parameters is allowed to be bound (i.e. is
     #: allowed to be added to `param_var_mapping`
-    allow_free_vars: bool = False
+    allow_free_vars: bool = field(default=False, kw_only=True)
 
     #: When parsing types in the signature or body of a method, we also need access to
     #: the type this method belongs to in order to resolve `Self` annotations.
-    self_ty: Type | None = None
+    self_ty: Type | None = field(default=None, kw_only=True)
 
     #: Allow protocols to be referred to by name as syntactic sugar for creating a bound
     #: variable that implements the protocol and referencing that.
     #: This is disallowed in struct fields.
-    disallow_protocol_types: bool = False
+    disallow_protocol_types: bool = field(default=False, kw_only=True)
 
     #: Whether the type we're parsing is a return type
-    is_output: bool = False
+    is_output: bool = field(default=False, kw_only=True)
+
+    #: Whether we're currently parsing a global function signature
+    is_signature: DefId | None = field(default=None, kw_only=True)
 
 
 def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
@@ -162,11 +176,34 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
             case str(_):
                 pass
 
-    # Py-expressions can also be used to specify static numbers
+    # Comptime-expressions can also be used to specify static numbers
     if comptime_expr := is_comptime_expression(node):
         from guppylang_internals.checker.expr_checker import eval_comptime_expr
 
-        v = eval_comptime_expr(comptime_expr, Context(ctx.globals, Locals({}), {}))
+        param_inst = dict(ctx.param_inst) | {
+            x: param.to_bound() for x, param in ctx.param_var_mapping.items()
+        }
+        try:
+            v = eval_comptime_expr(
+                comptime_expr, Context(ctx.globals, Locals({}), param_inst)
+            )
+        except RequiresMonomorphizationError:
+            # If we're checking a function body, we can reraise and wait for the
+            # monomorphisation
+            if not ctx.is_signature:
+                raise
+            # When parsing signatures, we need to encode it as a `ComptimeConstValue`
+            ty = ExistentialTypeVar.fresh("T", True, True)
+            params = sorted(ctx.param_var_mapping.values(), key=lambda param: param.idx)
+            return ConstArg(
+                ComptimeConstValue(
+                    ty,
+                    comptime_expr,
+                    params,
+                    [None] * len(ctx.param_var_mapping),
+                    ctx.is_signature,
+                )
+            )
         return check_comptime_value(v, node)
 
     # Finally, we also support delayed annotations in strings
@@ -470,6 +507,9 @@ def parse_parameter(
             bounds: list[ProtocolInst] = []
             must_be_copyable = False
             must_be_droppable = False
+
+            first_callable_sig: FunctionType | None = None
+
             for elt in elts:
                 match elt:
                     case ast.Name(id="Copy"):
@@ -480,9 +520,40 @@ def parse_parameter(
                         if proto_inst := parse_bound(
                             elt, globals, param_var_mapping, allow_free_vars
                         ):
+                            if isinstance(
+                                proto_inst,
+                                (CallableProtocolInst, ModifiableFunctionProtocolInst),
+                            ):
+                                sig = proto_inst.sig.with_unitary_flags(
+                                    UnitaryFlags.NoFlags
+                                )
+
+                                if (
+                                    first_callable_sig is not None
+                                    and sig != first_callable_sig
+                                ):
+                                    raise GuppyError(
+                                        IncompatibleCallableBounds(
+                                            elt, first_callable_sig, sig
+                                        )
+                                    )
+
+                                first_callable_sig = sig
+
                             bounds.append(proto_inst)
                         else:
                             raise GuppyError(UnrecognisedBound(elt, ast.unparse(elt)))
+
+            # TODO: Mirror single callable bounds as on L540 below until protocol
+            # Copy/Drop semantics are fully defined
+            # see https://github.com/Quantinuum/guppylang/issues/2097.
+            if bounds and all(
+                isinstance(p, (CallableProtocolInst, ModifiableFunctionProtocolInst))
+                for p in bounds
+            ):
+                must_be_copyable = True
+                must_be_droppable = True
+
             return TypeParam(
                 idx,
                 node.name,
@@ -513,7 +584,9 @@ def parse_parameter(
             else:
                 # TODO: In the future we might want to allow stuff like
                 #   `def foo[T, XS: array[T, 42]]` and so on
-                ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
+                ctx = TypeParsingCtx(
+                    globals, param_var_mapping, {}, allow_free_vars=allow_free_vars
+                )
                 ty = type_from_ast(bound, ctx)
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearConstParamError(bound, ty))
@@ -528,7 +601,9 @@ def parse_bound(
 ) -> ProtocolInst | None:
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
-    ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
+    ctx = TypeParsingCtx(
+        globals, param_var_mapping, {}, allow_free_vars=allow_free_vars
+    )
 
     # First, try to see if this is a protocol bound by checking if can find
     # a protocol definition with this name. In contrast to normal

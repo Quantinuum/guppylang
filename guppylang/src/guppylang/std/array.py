@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import builtins
 from types import GeneratorType
-from typing import TYPE_CHECKING, no_type_check
+from typing import TYPE_CHECKING, Self, no_type_check
 
-from guppylang_internals.decorator import custom_function, extend_type, hugr_op
+from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import CopyInoutCompiler
 from guppylang_internals.std._internal.checker import (
     ArrayCopyChecker,
     ArrayIndexChecker,
+    EmptyArrayChecker,
     NewArrayChecker,
 )
 from guppylang_internals.std._internal.compiler.array import (
@@ -25,33 +26,84 @@ from guppylang_internals.std._internal.compiler.array import (
     ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
     ArraySwapCompiler,
+    EmptyArrayCompiler,
     NewArrayCompiler,
 )
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
-from guppylang_internals.std._internal.util import external_op, type_arg
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
-from hugr import tys as ht
-from hugr.std.collections.borrow_array import EXTENSION
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
-from guppylang.std.lang import Copy, Drop
-from guppylang.std.mem import mem_swap
+from guppylang.std.lang import Copy, Drop, comptime
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
+from guppylang.std.platform import panic
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
 
 
-T = guppy.type_var("T")
-n = guppy.nat_var("n")
-L = guppy.type_var("L", copyable=False, droppable=False)
+@guppy.protocol
+class _ArrayTruthiness:
+    @guppy.require
+    def __bool__(self: Self) -> bool: ...
+
+
+# This equality bound is local until collection-wide interfaces are justified.
+@guppy.protocol
+class _ArrayEquality:
+    @guppy.require
+    def __eq__(self: Self, other: Self) -> bool: ...
+
+
+@guppy.protocol
+class _ArrayOrdering:
+    @guppy.require
+    def __lt__(self: Self, other: Self) -> bool: ...
+
+
+def _split_remainder(size: int, position: int) -> int:
+    """Validate a split position before computing its output shape."""
+    if not 0 <= position <= size:
+        msg = f"Split position {position} is out of bounds for array of size {size}"
+        raise ValueError(msg)
+    return size - position
+
+
+def _chunk_count(length: int, size: int) -> int:
+    """Validate chunk shape before transferring elements."""
+    if size <= 0 or length % size != 0:
+        msg = "Chunk size must be positive and divide the array length exactly"
+        raise ValueError(msg)
+    return length // size
+
+
+def _check_subarray_size(length: int, size: int) -> None:
+    if not 0 <= size <= length:
+        msg = "Subarray size must be between zero and the array length"
+        raise ValueError(msg)
+
+
+def _check_array_index(index: int, size: int, message: str | None = None) -> None:
+    """Validate a static array index before generating access code."""
+    if not 0 <= index < size:
+        msg = (
+            message or f"Array index {index} is out of bounds for array of size {size}"
+        )
+        raise ValueError(msg)
+
+
+def _check_bit_width(size: int) -> None:
+    """Validate the static width before generating any conversion code."""
+    # The comptime evaluator wraps Python exceptions in a source-located GuppyError.
+    if not 0 <= size <= 64:
+        msg = "Boolean array bit width must be between 0 and 64"
+        raise ValueError(msg)
 
 
 @extend_type(
@@ -67,29 +119,37 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
-    def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
+    def __getitem__(self, idx: int) -> T:
+        """Access an element in O(1) time and auxiliary space, excluding copy costs."""
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
-    def __setitem__[L, n: nat](
-        self: array[L, n], idx: int, value: L @ owned
-    ) -> None: ...
+    def __setitem__(self, idx: int, value: T @ owned) -> None:
+        """Assign an element in O(1) time and auxiliary space, excluding drop costs."""
 
     @guppy
     @no_type_check
-    def __len__[L, n: nat](self: array[L, n]) -> int:
+    def __len__(self) -> int:
+        """Return the static length in O(1) time and auxiliary space."""
         return n
 
     @custom_function(
         NewArrayCompiler(),
-        NewArrayChecker(),
+        checker=NewArrayChecker(),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(): ...
 
@@ -101,24 +161,37 @@ class array[T, n: nat](builtins.list[T]):
     @guppy
     @no_type_check
     def __iter__[L, n: nat](self: array[L, n] @ owned) -> SizedIter[ArrayIter[L, n], n]:
+        """Consume the array into an iterator in O(1) time and auxiliary space.
+
+        Traversing all elements takes O(n) time, excluding the loop body.
+        """
         return SizedIter(ArrayIter(self, 0))
 
     @custom_function(
-        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+        CopyInoutCompiler(),
+        checker=ArrayCopyChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
-        """Copy an array instance. Will only work if T is a copyable type."""
+        """Copy an array instance. Will only work if T is a copyable type.
+
+        Takes O(n) time and output space, excluding element copy costs.
+        """
 
     @custom_function(
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.PANIC],  # If index out-of-bounds
     )
-    def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
+    def is_borrowed(self, idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
         This is the case whenever a non-copyable element is borrowed, or when an element
         is manually taken out of the array via the `take` method.
+
+        Takes O(1) time and auxiliary space.
 
         .. code-block:: python
 
@@ -134,9 +207,11 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # Panics if element already taken, or out-of-bounds
+        effects=(),  # Panics if element already taken, or index out-of-bounds,
+        # but we record only for copyable elements (to match __getitem__),
+        # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
-    def take[L, n: nat](self: array[L, n], idx: int) -> L:
+    def take(self, idx: int) -> T:
         """Takes an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -153,6 +228,8 @@ class array[T, n: nat](builtins.list[T]):
         Also see `array.try_take` for a version of this function that does not panic if
         the element has already been taken out.
 
+        Takes O(1) time and auxiliary space, excluding element copy costs.
+
         .. code-block:: python
 
             qs = array(qubit() for _ in range(10))
@@ -166,7 +243,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def try_take[L, n: nat](self: array[L, n], idx: int) -> Option[L]:
+    def try_take(self, idx: int) -> Option[T]:
         """Tries to take an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -179,6 +256,8 @@ class array[T, n: nat](builtins.list[T]):
 
         Returns the extracted element or `nothing` if the element has already been taken
         out. Panics if the provided index is negative or out of bounds.
+
+        Takes O(1) time and auxiliary space, excluding element copy costs.
 
         .. code-block:: python
 
@@ -197,8 +276,11 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
+        effects=(),  # Panics if element not taken, or index out-of-bounds,
+        # but we record only for copyable elements (to match __getitem__),
+        # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
-    def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
+    def put(self, elem: T @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
         This is the complement of `array.take`. It may be used to fill the "hole" left
@@ -209,6 +291,8 @@ class array[T, n: nat](builtins.list[T]):
 
         Also see `array.try_put` for a version of this function that does not panic if
         if there is already an element at the given index.
+
+        Takes O(1) time and auxiliary space, excluding element drop costs.
 
         .. code-block:: python
 
@@ -222,9 +306,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def try_put[L, n: nat](
-        self: array[L, n], elem: L @ owned, idx: int
-    ) -> Result[None, L]:
+    def try_put(self, elem: T @ owned, idx: int) -> Result[None, T]:
         """Tries to put an element back into the array if it has been taken out
         previously.
 
@@ -234,6 +316,8 @@ class array[T, n: nat](builtins.list[T]):
         If there is already an element at the given index, then the array will not be
         mutated and the passed replacement element will be returned back in an `err`
         variant. Panics if the provided index is negative or out of bounds.
+
+        Takes O(1) time and auxiliary space, excluding element drop costs.
 
         .. code-block:: python
 
@@ -250,10 +334,13 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler())
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.PANIC])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
+
+        Takes at most O(n) time and O(1) auxiliary space; copyable arrays need
+        no per-element check.
 
         .. code-block:: python
 
@@ -271,6 +358,9 @@ class array[T, n: nat](builtins.list[T]):
     ) -> Result[None, array[L, n]]:
         """Similar to `discard_all_taken`, but instead of panicking returns the
         unmodified array when not all elements have been taken out.
+
+        Scans in index order, stopping at the first remaining element. Takes
+        O(n) worst-case time and O(1) auxiliary space.
 
         .. code-block:: python
 
@@ -294,30 +384,990 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def reverse_in_place(self: array[L, n]) -> None:
-        """Reverse array elements in-place.
+    def reverse_in_place(self) -> None:
+        """Reverse array elements in place.
+
+        Borrows the array and supports linear elements. Empty and singleton
+        arrays are unchanged. Pairwise exchanges take O(n) time and O(1)
+        auxiliary space.
 
         .. code-block:: python
 
             qs = array(qubit() for _ in range(2))
             qs.reverse_in_place()
         """
-        for i in range(n // 2):
-            mem_swap(self[i], self[n - i - 1])
+        _reverse_range(self, 0, n)
+
+    @guppy
+    @no_type_check
+    def swap(self, first: int, second: int) -> None:
+        """Swap two array elements in place using `array_swap`.
+
+        Borrows the array and supports linear elements. Equal valid indices
+        leave it unchanged. Panics if either index is negative or out of bounds.
+        Takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3)
+            values.swap(0, 2)  # [3, 2, 1]
+        """
+        array_swap(self, first, second)
+
+    @guppy
+    @no_type_check
+    def fill[T: (Copy, Drop), n: nat](self: array[T, n], value: T) -> None:
+        """Replace every element with a copy of value, borrowing both inputs.
+
+        Requires Copy and Drop to copy the replacement and discard old elements.
+        Empty arrays are unchanged. A single scan takes O(n) time and O(1)
+        auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3)
+            values.fill(7)  # [7, 7, 7]
+        """
+        for i in range(n):
+            self[i] = value
+
+    @guppy
+    @no_type_check
+    def rotate_left_in_place(self, amount: int) -> None:
+        """Rotate elements left by amount, preserving their cyclic order.
+
+        Borrows the array and supports linear elements. Amounts wrap modulo
+        the length; negative amounts rotate right. Empty arrays are unchanged
+        for any amount. Zero effective rotations are no-ops.
+        The rotation is implemented using three reversals, taking O(n) time
+        and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3, 4)
+            values.rotate_left_in_place(1)  # [2, 3, 4, 1]
+        """
+        amount = _normalize_rotation(n, amount)
+        if amount == 0:
+            return
+        _reverse_range(self, 0, amount)
+        _reverse_range(self, amount, n)
+        self.reverse_in_place()
+
+    @guppy
+    @no_type_check
+    def rotate_right_in_place(self, amount: int) -> None:
+        """Rotate elements right by amount, preserving their cyclic order.
+
+        Borrows the array and supports linear elements. Amounts wrap modulo
+        the length; negative amounts rotate left. Empty arrays are unchanged
+        for any amount. Zero effective rotations are no-ops.
+        The rotation is implemented using three reversals, taking O(n) time
+        and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3, 4)
+            values.rotate_right_in_place(1)  # [4, 1, 2, 3]
+        """
+        amount = _normalize_rotation(n, amount)
+        if amount == 0:
+            return
+        self.rotate_left_in_place(n - amount)
+
+    @guppy
+    @no_type_check
+    def concat[T, n: nat, m: nat](
+        self: array[T, n] @ owned, other: array[T, m] @ owned
+    ) -> array[T, comptime(n + m)]:
+        """Consume two arrays and join their elements in order.
+
+        Supports linear elements, transferring each exactly once into a complete
+        output. Either input may be empty. Takes O(n + m) time and O(1) auxiliary
+        space, excluding the O(n + m) output array.
+
+        .. code-block:: python
+
+            joined = array(1, 2).concat(array(3))  # [1, 2, 3]
+        """
+        result = array(
+            _concat_element(self, other, i)
+            for i in range(comptime(n + m))  # type: ignore[name-defined]
+        )
+        self.discard_all_taken()
+        other.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def appended[T, n: nat](
+        self: array[T, n] @ owned, value: T @ owned
+    ) -> array[T, comptime(n + 1)]:
+        """Consume an array and value, returning the value appended at the end.
+
+        Supports linear elements and empty arrays. Transfers each element once
+        into a complete output. Takes O(n + 1) time and O(1) auxiliary space,
+        excluding the O(n + 1) output array.
+
+        .. code-block:: python
+
+            values = array(1, 2).appended(3)  # [1, 2, 3]
+        """
+        return self.concat(array(value))
+
+    @guppy
+    @no_type_check
+    def split_at[T, n: nat](
+        self: array[T, n] @ owned, position: nat @ comptime
+    ) -> tuple[array[T, position], array[T, comptime(_split_remainder(n, position))]]:
+        """Consume an array, splitting before the compile-time position.
+
+        Positions 0 through n are valid, including endpoints and empty arrays.
+        Other positions are rejected during compilation, before any transfer.
+        Preserves order and moves each linear element exactly once into complete
+        outputs. Takes O(n) time and O(1) auxiliary space, excluding O(n) outputs.
+
+        .. code-block:: python
+
+            left, right = array(1, 2, 3).split_at(1)  # [1], [2, 3]
+
+        Qubit registers can be split and rejoined without copying:
+
+        .. code-block:: python
+
+            from guppylang.std.quantum import discard_array, qubit
+
+            qs = array(qubit() for _ in range(3))
+            left, right = qs.split_at(1)
+            discard_array(left.concat(right))
+        """
+        left = array(self.take(i) for i in range(position))
+        right = array(self.take(position + i) for i in range(comptime(n - position)))
+        self.discard_all_taken()
+        return left, right
+
+    @guppy
+    @no_type_check
+    def subarray[T: Copy, n: nat](
+        self: array[T, n], start: int, size: nat @ comptime
+    ) -> array[T, size]:
+        """Copy a statically sized subarray starting at a runtime index.
+
+        Borrows the input and requires Copy. Rejects sizes greater than n during
+        compilation. Panics unless 0 <= start <= n and size <= n - start.
+        A zero-size result may start at n. Takes O(size) time and O(1) auxiliary
+        space, excluding the output array.
+
+        .. code-block:: python
+
+            middle = array(1, 2, 3, 4).subarray(1, 2)  # [2, 3]
+        """
+        comptime(_check_subarray_size(n, size))
+        if start < 0 or start > n or size > n - start:
+            panic("Subarray bounds are out of range")
+        return array(self[start + i] for i in range(size))
+
+    @guppy
+    @no_type_check
+    def zip[T, U, n: nat](
+        self: array[T, n] @ owned, other: array[U, n] @ owned
+    ) -> array[tuple[T, U], n]:
+        """Consume equal-length arrays, pairing corresponding elements.
+
+        Supports linear elements and empty arrays. Transfers each element once,
+        preserving index order. Takes O(n) time and O(1) auxiliary space,
+        excluding the output array.
+
+        .. code-block:: python
+
+            pairs = array(1, 2).zip(array(True, False))
+        """
+        result = array((self.take(i), other.take(i)) for i in range(n))
+        self.discard_all_taken()
+        other.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def unzip[T, U, n: nat](
+        self: array[tuple[T, U], n] @ owned,
+    ) -> tuple[array[T, n], array[U, n]]:
+        """Consume pairs, returning their first and second components in order.
+
+        Supports linear components and empty arrays. Each pair is consumed once;
+        second components are buffered in complete Option slots while first
+        components are collected. Takes O(n) time and O(n) auxiliary space,
+        excluding the output arrays.
+
+        .. code-block:: python
+
+            numbers, flags = array((1, True), (2, False)).unzip()
+        """
+        seconds = array(nothing[U]() for _ in range(n))  # type: ignore[name-defined]
+        firsts = array(_unzip_first(self, seconds, i) for i in range(n))
+        self.discard_all_taken()
+        result = array(seconds.take(i).unwrap() for i in range(n))
+        seconds.discard_all_taken()
+        return firsts, result
+
+    @guppy
+    @no_type_check
+    def flatten[T, n: nat, m: nat](
+        self: array[array[T, m], n] @ owned,
+    ) -> array[T, comptime(n * m)]:
+        """Consume a rectangular array, concatenating its rows in row-major order.
+
+        Supports linear elements, empty outer arrays, and zero-length rows.
+        Transfers each element once into a complete output. Takes O(n + n*m)
+        time, including cleanup of empty rows, and O(1) auxiliary space excluding
+        the output array.
+
+        .. code-block:: python
+
+            flat = array(array(1, 2), array(3, 4)).flatten()  # [1, 2, 3, 4]
+        """
+        result = array(
+            self[i // m].take(i % m)  # type: ignore[name-defined]
+            for i in range(comptime(n * m))  # type: ignore[name-defined]
+        )
+        for row in self:
+            row.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def chunks[T, n: nat](
+        self: array[T, n] @ owned, size: nat @ comptime
+    ) -> array[array[T, size], comptime(_chunk_count(n, size))]:
+        """Consume an array, grouping consecutive elements into fixed-size rows.
+
+        The compile-time size must be positive and divide n exactly; invalid
+        shapes are rejected before any transfer. Empty arrays yield zero rows.
+        Supports linear elements and preserves order. Takes O(n) time and O(1)
+        auxiliary space, excluding the output arrays.
+
+        .. code-block:: python
+
+            rows = array(1, 2, 3, 4).chunks(2)  # [[1, 2], [3, 4]]
+        """
+        result = array(
+            array(self.take(i * size + j) for j in range(size))
+            for i in range(comptime(_chunk_count(n, size)))
+        )
+        self.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def get[T: Copy, n: nat](self: array[T, n], index: int) -> Option[T]:
+        """Return a copy at index, or nothing for negative/out-of-range indices.
+
+        Borrows the array. Requires Copy; takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 7)
+            value = values.get(1)  # some(7)
+            missing = values.get(-1)  # nothing
+        """
+        if index < 0 or index >= n:
+            return nothing()
+        return some(self[index])
+
+    @guppy
+    @no_type_check
+    def get_static[T: Copy, n: nat](self: array[T, n], index: nat @ comptime) -> T:
+        """Return a copy at a compile-time index, rejecting out-of-bounds indices.
+
+        Borrows the array and requires Copy. The index must satisfy 0 <= index < n;
+        empty arrays have no valid index. Takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 7)
+            value = values.get_static(1)  # 7
+        """
+        comptime(_check_array_index(index, n))
+        return self[int(index)]
+
+    @guppy
+    @no_type_check
+    def first[T: Copy, n: nat](self: array[T, n]) -> T:
+        """Return a copy of the first element, rejecting empty arrays at compile time.
+
+        Borrows the array. Requires Copy; O(1) time and auxiliary space.
+        """
+        return self.get_static(0)
+
+    @guppy
+    @no_type_check
+    def last[T: Copy, n: nat](self: array[T, n]) -> T:
+        """Return a copy of the last element, rejecting empty arrays at compile time.
+
+        Borrows the array. Requires Copy; O(1) time and auxiliary space.
+        """
+        # Check non-emptiness before forming n - 1, so the diagnostic names last().
+        comptime(_check_array_index(0, n, "array.last() requires a non-empty array"))
+        return self[n - 1]
+
+    @guppy
+    @no_type_check
+    def is_empty(self) -> bool:
+        """Return whether the static length is zero, borrowing the array.
+
+        Takes O(1) time and auxiliary space; supports linear elements.
+        """
+        return n == 0
+
+    @guppy
+    @no_type_check
+    def __eq__[T: _ArrayEquality, n: nat, m: nat](
+        self: array[T, n], other: array[T, m]
+    ) -> bool:
+        """Compare borrowed arrays using element equality in index order.
+
+        Different lengths return False immediately; two empty arrays are equal.
+        Stops at the first mismatch. Supports linear elements with borrowed
+        equality. O(n) worst-case time excluding equality costs, O(1) auxiliary
+        space.
+        """
+        if n != m:  # type: ignore[name-defined]
+            return False
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if not self[i].__eq__(other[i]):
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def __ne__[T: _ArrayEquality, n: nat, m: nat](
+        self: array[T, n], other: array[T, m]
+    ) -> bool:
+        """Return the negation of array equality, borrowing both arrays.
+
+        Different lengths are unequal; two empty arrays are not unequal.
+        Supports linear elements with borrowed equality, stopping at the first
+        mismatch. O(n) worst-case time excluding equality costs and O(1)
+        auxiliary space.
+        """
+        return not (self == other)
+
+    @guppy
+    @no_type_check
+    def contains[T: _ArrayEquality, n: nat](self: array[T, n], value: T) -> bool:
+        """Return whether value occurs, or False for an empty array.
+
+        Borrows the array and value, supporting linear elements with borrowed
+        equality. Scans in index order, stopping at the first match. O(n)
+        worst-case time excluding equality costs, O(1) auxiliary space.
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin any yet.
+            if self[i].__eq__(value):
+                return True
+        return False
+
+    @guppy
+    @no_type_check
+    def count[T: _ArrayEquality, n: nat](self: array[T, n], value: T) -> int:
+        """Count occurrences of value, returning zero for an empty array.
+
+        Borrows the array and value, supporting linear elements with borrowed
+        equality. Compares each element once in index order. O(n) time excluding
+        equality costs and O(1) auxiliary space.
+        """
+        total = 0
+        for i in range(n):
+            if self[i].__eq__(value):
+                total += 1
+        return total
+
+    @guppy
+    @no_type_check
+    def _sum_int[n: nat](self: array[int, n]) -> int:
+        result = 0
+        for i in range(n):
+            result = result + self[i]
+        return result
+
+    @guppy
+    @no_type_check
+    def _sum_nat[n: nat](self: array[nat, n]) -> nat:
+        result = nat(0)
+        for i in range(n):
+            result = result + self[i]
+        return result
+
+    @guppy
+    @no_type_check
+    def _sum_float[n: nat](self: array[float, n]) -> float:
+        # Adding a seed afterward can round differently from starting with it.
+        result = 0.0
+        for i in range(n):
+            result = result + self[i]
+        return result
+
+    @guppy.overload(
+        _sum_int,
+        _sum_nat,
+        _sum_float,
+    )
+    def sum_numeric(self):
+        """Return the sum of an int, nat, or float array, borrowing its elements.
+
+        Uses the typed identity 0; empty arrays return that identity.
+        Accumulates from left to right. Takes O(n) time and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3)
+            total = values.sum_numeric()  # 6
+        """
+
+    @guppy
+    @no_type_check
+    def _product_int[n: nat](self: array[int, n]) -> int:
+        result = 1
+        for i in range(n):
+            result = result * self[i]
+        return result
+
+    @guppy
+    @no_type_check
+    def _product_nat[n: nat](self: array[nat, n]) -> nat:
+        result = nat(1)
+        for i in range(n):
+            result = result * self[i]
+        return result
+
+    @guppy
+    @no_type_check
+    def _product_float[n: nat](self: array[float, n]) -> float:
+        # Multiplying by a seed afterward can differ in rounding/overflow from
+        # starting the accumulator with that seed.
+        result = 1.0
+        for i in range(n):
+            result = result * self[i]
+        return result
+
+    @guppy.overload(
+        _product_int,
+        _product_nat,
+        _product_float,
+    )
+    def product_numeric(self):
+        """Return the product of an int, nat, or float array, borrowing its elements.
+
+        Uses the typed identity 1; empty arrays return that identity.
+        Accumulates from left to right. Takes O(n) time and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3)
+            total = values.product_numeric()  # 6
+        """
+
+    @guppy
+    @no_type_check
+    def min[T: (Copy, _ArrayOrdering), n: nat](self: array[T, n]) -> T:
+        """Copy the least element, rejecting empty arrays at compile time.
+
+        Borrows the input and requires Copy and borrowed less-than comparisons.
+        Retains the first equally ranked element. Ordering must be consistent;
+        floating-point NaNs do not define a strict weak ordering.
+        Scans from left to right in O(n) time excluding comparison costs and
+        O(1) auxiliary space.
+
+        .. code-block:: python
+
+            value = array(3, 1, 2).min()  # 1
+        """
+        comptime(_check_array_index(0, n, "array.min() requires a non-empty array"))
+        best = 0
+        for i in range(1, n):
+            if self[i] < self[best]:
+                best = i
+        return self[best]
+
+    @guppy
+    @no_type_check
+    def max[T: (Copy, _ArrayOrdering), n: nat](self: array[T, n]) -> T:
+        """Copy the greatest element, rejecting empty arrays at compile time.
+
+        Borrows the input and requires Copy and borrowed less-than comparisons.
+        Retains the first equally ranked element. Ordering must be consistent;
+        floating-point NaNs do not define a strict weak ordering.
+        Scans from left to right in O(n) time excluding comparison costs and
+        O(1) auxiliary space.
+
+        .. code-block:: python
+
+            value = array(3, 1, 2).max()  # 3
+        """
+        comptime(_check_array_index(0, n, "array.max() requires a non-empty array"))
+        best = 0
+        for i in range(1, n):
+            if self[best] < self[i]:
+                best = i
+        return self[best]
+
+    @guppy
+    @no_type_check
+    def is_sorted[T: _ArrayOrdering, n: nat](self: array[T, n]) -> bool:
+        """Return whether elements are in nondecreasing order, borrowing the array.
+
+        Empty and singleton arrays are sorted. Stops at the first descending
+        adjacent pair. Supports linear elements through borrowed less-than
+        comparisons, which must define a consistent strict weak ordering;
+        floating-point NaNs do not satisfy this requirement.
+        Takes O(n) worst-case time excluding comparison costs and O(1)
+        auxiliary space.
+
+        .. code-block:: python
+
+            ordered = array(1, 2, 2).is_sorted()  # True
+        """
+        for i in range(1, n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if self[i].__lt__(self[i - 1]):
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def sort_unstable[T: _ArrayOrdering, n: nat](self: array[T, n]) -> None:
+        """Sort the array in place into nondecreasing order using heapsort.
+
+        Borrows the array, preserving every element, including linear values.
+        Empty and singleton arrays are unchanged. Equally ranked elements may
+        be reordered. Borrowed less-than comparisons must define a consistent
+        strict weak ordering; floating-point NaNs do not satisfy this requirement.
+        Building a max-heap and repeatedly extracting its maximum takes
+        O(n log n) worst-case time excluding comparison costs and O(1)
+        auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 1, 2)
+            values.sort_unstable()  # [1, 2, 3]
+        """
+        # Build the heap from the last parent backwards; child heaps are already valid.
+        # https://en.wikipedia.org/wiki/Heapsort#Pseudocode
+        start = int(n) // 2
+        while start > 0:
+            start -= 1
+            _sift_down(self, start, n)
+        # Heap extraction: move each maximum into the sorted suffix [end, n).
+        end = int(n)
+        while end > 1:
+            end -= 1
+            array_swap(self, 0, end)
+            _sift_down(self, 0, end)
+
+    @guppy
+    @no_type_check
+    def binary_search[T: _ArrayOrdering, n: nat](
+        self: array[T, n], value: T
+    ) -> Result[int, int]:
+        """Find a matching index in a sorted array, or its insertion position.
+
+        Returns ok(index) for a match or err(insertion_index) if absent. An empty
+        array returns err(0). Any matching duplicate index may be returned.
+        Borrows the array and value, supporting linear elements. Matches are
+        equivalent under the ordering: neither element compares less than the
+        other, without requiring equality.
+
+        The array must already be sorted under the same consistent strict weak
+        ordering; this precondition is not checked. Floating-point NaNs do not
+        satisfy this requirement. Halves the search interval each iteration,
+        taking O(log n) time excluding comparison costs and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 3, 5)
+            found = values.binary_search(3).unwrap()  # 1
+            insertion = values.binary_search(4).unwrap_err()  # 2
+        """
+        low = 0
+        high = int(n)
+        while low < high:
+            middle = low + (high - low) // 2
+            if self[middle].__lt__(value):
+                low = middle + 1
+            elif value.__lt__(self[middle]):
+                high = middle
+            else:
+                return ok(middle)
+        return err(low)
+
+    # Borrowed indexing allows early exit without consuming linear elements.
+    # An iterable abstraction must define ownership of unconsumed elements
+    # before it can provide equivalent short-circuit reductions.
+    @guppy
+    @no_type_check
+    def any[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return whether any element is truthy, or ``False`` for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        Scans in index order and stops at the first truthy
+        element. Takes O(n) time in the worst case and O(1) auxiliary space.
+        Panics if an accessed element is missing.
+
+        .. code-block:: python
+
+            any_true = array(False, True).any()  # True
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin any yet.
+            if self[i]:
+                return True
+        return False
+
+    @guppy
+    @no_type_check
+    def all[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return whether all elements are truthy, or ``True`` for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        Scans in index order and stops at the first falsey
+        element. Takes O(n) time in the worst case and O(1) auxiliary space.
+        Panics if an accessed element is missing.
+
+        .. code-block:: python
+
+            all_true = array(True, False).all()  # False
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if not self[i]:
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def count_true[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> int:
+        """Count truthy elements, returning zero for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        A single scan takes O(n) time and O(1) auxiliary space.
+        Panics if an element is missing.
+
+        .. code-block:: python
+
+            count = array(True, False, True).count_true()  # 2
+        """
+        count = 0
+        for i in range(n):
+            count += int(bool(self[i]))
+        return count
+
+    @guppy
+    @no_type_check
+    def parity[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return the XOR of all element truth values, or ``False`` for an empty array.
+
+        The result is true exactly when an odd number of elements are truthy.
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        A single scan takes O(n) time and O(1) auxiliary space.
+        Panics if an element is missing.
+
+        .. code-block:: python
+
+            from guppylang.std.quantum import measure_array, qubit, x
+
+            qs = array(qubit() for _ in range(3))
+            x(qs[0])
+            outcomes = array(m.read() for m in measure_array(qs))
+            odd_parity = outcomes.parity()  # True
+        """
+        parity = False
+        for i in range(n):
+            parity ^= bool(self[i])
+        return parity
+
+    # These operations borrow both inputs. A shared zip/map/fold abstraction
+    # must preserve borrowing and equal static lengths to implement this API.
+    @guppy
+    @no_type_check
+    def bitwise_and[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise AND of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+        """
+        return array(self[i] & other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_or[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise OR of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+        """
+        return array(self[i] | other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_xor[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise XOR of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+
+        .. code-block:: python
+
+            expected = array(True, False, True)
+            observed = array(True, True, False)
+            differences = observed.bitwise_xor(expected)  # [False, True, True]
+        """
+        return array(self[i] ^ other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_not[n: nat](self: array[bool, n]) -> array[bool, n]:
+        """Return a new boolean array with every element negated.
+
+        Borrows the input without modifying it. An empty input produces an
+        empty array. Takes O(n) time and O(1) auxiliary space, excluding the
+        O(n) output array.
+        """
+        return array(not self[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def dot[n: nat](self: array[bool, n], other: array[bool, n]) -> bool:
+        """Return the GF(2) scalar product of equal-length boolean arrays.
+
+        Computes the XOR of pairwise ANDs, or ``False`` for empty arrays.
+        Borrows both inputs without modifying them. A single scan takes
+        O(n) time and O(1) auxiliary space without an intermediate array.
+
+        .. code-block:: python
+
+            outcomes = array(True, False, True)
+            mask = array(True, False, False)
+            selected_parity = outcomes.dot(mask)  # True
+        """
+        parity = False
+        for i in range(n):
+            parity ^= self[i] & other[i]
+        return parity
+
+    @guppy
+    @no_type_check
+    def __and__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs & ys`` using `bitwise_and`."""
+        return self.bitwise_and(other)
+
+    @guppy
+    @no_type_check
+    def __or__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs | ys`` using `bitwise_or`."""
+        return self.bitwise_or(other)
+
+    @guppy
+    @no_type_check
+    def __xor__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs ^ ys`` using `bitwise_xor`."""
+        return self.bitwise_xor(other)
+
+    @guppy
+    @no_type_check
+    def __invert__[n: nat](self: array[bool, n]) -> array[bool, n]:
+        """Implement ``~xs`` using `bitwise_not`."""
+        return self.bitwise_not()
+
+    @guppy
+    @no_type_check
+    def __matmul__[n: nat](self: array[bool, n], other: array[bool, n]) -> bool:
+        """Implement ``xs @ ys`` using `dot`."""
+        return self.dot(other)
+
+    @guppy
+    @no_type_check
+    def to_nat[n: nat](self: array[bool, n]) -> nat:
+        """Convert a boolean array to an unsigned integer, most significant bit first.
+
+        Index 0 is the most significant bit. An empty array represents zero.
+        The static length must be between 0 and 64; other lengths are rejected
+        during compilation. Borrows the input without modifying it.
+
+        A left-to-right shift-and-OR scan takes O(n) time and O(1) auxiliary
+        space. Each shift is by one bit, including at width 64.
+
+        .. code-block:: python
+
+            bits = array(True, False, False)
+            value = bits.to_nat()  # nat(4)
+        """
+        return _array_to_nat(self, False)
+
+    @guppy
+    @no_type_check
+    def to_nat_le[n: nat](self: array[bool, n]) -> nat:
+        """Convert a boolean array to an unsigned integer, least significant bit first.
+
+        Index 0 is the least significant bit. An empty array represents zero.
+        The static length must be between 0 and 64; other lengths are rejected
+        during compilation. Borrows the input without modifying it.
+
+        A right-to-left shift-and-OR scan takes O(n) time and O(1) auxiliary
+        space. Each shift is by one bit, including at width 64.
+
+        .. code-block:: python
+
+            bits = array(True, False, False)
+            value = bits.to_nat_le()  # nat(1)
+        """
+        return _array_to_nat(self, True)
 
 
-@hugr_op(
-    external_op(
-        "new_all_borrowed",
-        [ht.VariableArg(idx=1, param=ht.BoundedNatParam()), type_arg(0)],
-        EXTENSION,
-    ),
+@guppy
+@no_type_check
+def _array_to_nat[n: nat](bits: array[bool, n], little_endian: bool @ comptime) -> nat:
+    comptime(_check_bit_width(n))  # type: ignore[name-defined]
+    size = len(bits)
+    value = nat(0)
+    for i in range(size):
+        index = size - i - 1 if little_endian else i
+        value = (value << nat(1)) | nat(bits[index])
+    return value
+
+
+@guppy
+@no_type_check
+def _array_from_nat(
+    value: nat, size: nat @ comptime, little_endian: bool @ comptime
+) -> Option[array[bool, size]]:
+    comptime(_check_bit_width(size))
+    maximum: nat = comptime((1 << size) - 1)
+    if value > maximum:
+        return nothing()
+    # Visit bit positions in output order without reversing or copying an array.
+    first, step = (0, 1) if little_endian else (int(size) - 1, -1)
+    return some(
+        array(bool((value >> nat(first + step * i)) & nat(1)) for i in range(size))
+    )
+
+
+@guppy
+@no_type_check
+def _sift_down[T: _ArrayOrdering, n: nat](
+    values: array[T, n], root: int, end: int
+) -> None:
+    # The children below root already form max-heaps in [0, end).
+    # Swapping the root with its greater child preserves each child's subtree
+    # until the displaced root is sifted down on the next iteration.
+    while root < end // 2:
+        child = 2 * root + 1
+        if child + 1 < end and values[child].__lt__(values[child + 1]):
+            child += 1
+        if not values[root].__lt__(values[child]):
+            return
+        array_swap(values, root, child)
+        root = child
+
+
+@guppy
+@no_type_check
+def _normalize_rotation(length: int, amount: int) -> int:
+    if length == 0:
+        return 0
+    # Normalize the signed remainder without negating a potentially minimal int.
+    offset = amount % length
+    if offset < 0:
+        offset += length
+    return offset
+
+
+@guppy
+@no_type_check
+def _reverse_range[T, n: nat](values: array[T, n], start: int, stop: int) -> None:
+    # Callers validate the half-open range before the first exchange.
+    for i in range((stop - start) // 2):
+        array_swap(values, start + i, stop - i - 1)
+
+
+@guppy
+@no_type_check
+def _unzip_first[T, U, n: nat](
+    pairs: array[tuple[T, U], n], seconds: array[Option[U], n], index: int
+) -> T:
+    first, second = pairs.take(index)
+    seconds[index].swap(some(second)).unwrap_nothing()
+    return first
+
+
+@guppy
+@no_type_check
+def _concat_element[T, n: nat, m: nat](
+    left: array[T, n], right: array[T, m], index: int
+) -> T:
+    # Conditional expressions are unsupported in array comprehensions.
+    if index < len(left):
+        return left.take(index)
+    return right.take(index - len(left))
+
+
+@guppy
+@no_type_check
+def array_from_nat(value: nat, size: nat @ comptime) -> Option[array[bool, size]]:
+    """Convert an unsigned integer to a boolean array, most significant bit first.
+
+    Index 0 is the most significant bit. The compile-time size must be between
+    0 and 64; other sizes are rejected during compilation. Returns ``some(array)``
+    if the value fits in the requested size, or ``nothing`` otherwise. Size zero
+    accepts only zero.
+
+    Extracting each bit takes O(size) time and O(1) auxiliary space, excluding
+    the O(size) output array. Runtime shifts are at most 63 bits.
+
+    .. code-block:: python
+
+        bits = array_from_nat(nat(4), 3).unwrap()  # [True, False, False]
+    """
+    return _array_from_nat(value, size, False)
+
+
+@guppy
+@no_type_check
+def array_from_nat_le(value: nat, size: nat @ comptime) -> Option[array[bool, size]]:
+    """Convert an unsigned integer to a boolean array, least significant bit first.
+
+    Index 0 is the least significant bit. The compile-time size must be between
+    0 and 64; other sizes are rejected during compilation. Returns ``some(array)``
+    if the value fits in the requested size, or ``nothing`` otherwise. Size zero
+    accepts only zero.
+
+    Extracting each bit takes O(size) time and O(1) auxiliary space, excluding
+    the O(size) output array. Runtime shifts are at most 63 bits.
+
+    .. code-block:: python
+
+        bits = array_from_nat_le(nat(4), 3).unwrap()  # [False, False, True]
+    """
+    return _array_from_nat(value, size, True)
+
+
+@custom_function(
+    EmptyArrayCompiler(),
+    checker=EmptyArrayChecker(),
+    effects=[],
 )
 def empty_array[T, n: nat]() -> array[T, n]:
     """Construct an array with all elements borrowed.
 
     Elements must be added with `array.put` before they can be accessed. Since no
     elements are present initially, `array.discard_all_taken` may be called immediately.
+
+    Only non-copyable element types are supported. Arrays of copyable elements should
+    be constructed directly, for example via an array comprehension.
     """
 
 
@@ -341,7 +1391,7 @@ class ArrayIter[L, n: nat]:
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
+@custom_function(ArraySwapCompiler(), effects=[Effect.PANIC])
 def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -350,7 +1400,8 @@ def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
 
     The swap happens in-place. Panics if either index is out of bounds.
 
-    Works with both copyable and linear types (like qubits).
+    Works with both copyable and linear types (like qubits). Equal valid indices
+    leave the array unchanged. Takes O(1) time and auxiliary space.
 
     Args:
         arr: The array to modify
@@ -370,10 +1421,7 @@ class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(
-        FrozenarrayGetitemCompiler(),
-        effects=[Effect.ANY],
-    )
+    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.PANIC])
     def __getitem__(self, item: int) -> T: ...
 
     @guppy

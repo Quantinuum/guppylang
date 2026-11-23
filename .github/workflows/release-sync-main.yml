@@ -1,0 +1,112 @@
+# Open a PR to bring a published release's changelogs and version metadata
+# back to main. A newer development version on main is preserved.
+name: 🚚 Sync published release to main
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Published guppylang release tag (for example, guppylang-v1.1.2)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-sync-main
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.HUGRBOT_PAT }}
+
+jobs:
+  sync:
+    name: Open release sync PR
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.HUGRBOT_PAT }}
+
+      - name: Resolve the published release
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^guppylang-v[0-9]+\.[0-9]+\.[0-9]+(-(a|b|rc)[0-9]+)?$ ]]; then
+            if [ "${{ github.event_name }}" = release ]; then
+              echo "Only guppylang release events need a sync PR."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::Expected a guppylang-v<version> release tag."
+            exit 1
+          fi
+
+          # A manual dispatch must point at a published release, not an
+          # arbitrary ref or an unpublished draft.
+          release=$(gh release view "$RELEASE_TAG" --json isDraft,tagName)
+          if [ "$(jq -r '.isDraft' <<< "$release")" != false ]; then
+            echo "::error::$RELEASE_TAG is still a draft release."
+            exit 1
+          fi
+          git rev-parse -q --verify "refs/tags/$RELEASE_TAG^{commit}" >/dev/null
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#guppylang-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync changelogs and version metadata
+        id: sync
+        if: steps.release.outputs.skip != 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release/sync_published_release.py "$RELEASE_TAG"
+          if git diff --quiet; then
+            echo "No sync needed for $RELEASE_TAG."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat
+          fi
+
+      - name: Open the sync PR
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="release-sync/$RELEASE_TAG"
+          existing=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // ""')
+          if [ -n "$existing" ]; then
+            echo "Sync PR already exists: $existing"
+            exit 0
+          fi
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "::error::$branch already exists without an open PR; leaving it untouched."
+            exit 1
+          fi
+
+          git config user.name "hugrbot"
+          git config user.email "hugrbot@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -- guppylang/CHANGELOG.md guppylang-internals/CHANGELOG.md \
+            guppylang/pyproject.toml guppylang-internals/pyproject.toml \
+            guppylang/src/guppylang/__init__.py \
+            guppylang-internals/src/guppylang_internals/__init__.py uv.lock
+          git commit -m "chore: sync published Guppy $VERSION to main"
+          git push origin "$branch"
+          printf 'Sync release [%s](https://github.com/%s/releases/tag/%s) to main.\n\nThe changelog sections come from the published tag. Package versions are updated only when main is behind the release.\n' \
+            "$RELEASE_TAG" "$GITHUB_REPOSITORY" "$RELEASE_TAG" > /tmp/release-sync-body.md
+          gh pr create --base main --head "$branch" \
+            --title "chore: Sync down release v$VERSION" \
+            --body-file /tmp/release-sync-body.md

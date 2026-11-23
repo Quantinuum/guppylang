@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:16:11)
+   | 
+14 |     foo[0](array(1))
+15 |     foo[1](array(1, 2))
+16 |     foo[2](array(1, 2))
+   |            ^^^^^^^^^^^ Expected expression of type `array[int, 3]`, got `array[int,
+   |                        2]`
+
+Guppy compilation failed due to 1 previous error

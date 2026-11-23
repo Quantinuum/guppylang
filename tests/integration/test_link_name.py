@@ -413,3 +413,76 @@ def test_struct_staticmethod_annotated(qualifier):
         "totally_qualified_override_name",
         "superbly_qualified_override_name",
     }
+
+
+def test_comptime_qualified_name(qualifier):
+    @guppy.comptime
+    def function() -> None:
+        pass
+
+    names = _func_names(function.with_minimal_opt().compile())
+    assert f"{qualifier}.<locals>.function" in names
+
+
+def test_comptime_generic_names_are_distinct(qualifier):
+    @guppy.comptime
+    def identity[T](value: T) -> T:
+        return value
+
+    @guppy
+    def main() -> None:
+        _ = identity(1)
+        _ = identity(True)
+
+    names = _func_names(main.with_minimal_opt().compile())
+    prefix = f"{qualifier}.<locals>.identity"
+    assert f"{prefix}$int" in names
+    assert f"{prefix}$bool" in names
+
+
+def test_comptime_constant_names(qualifier):
+    from guppylang.std.array import array
+
+    n = guppy.nat_var("n")
+
+    @guppy.comptime
+    def values() -> array[int, n]:
+        return list(range(n))
+
+    @guppy
+    def main() -> None:
+        _ = values[2]()
+        _ = values[3]()
+
+    names = _func_names(main.with_minimal_opt().compile())
+    prefix = f"{qualifier}.<locals>.values"
+    assert f"{prefix}$2" in names
+    assert f"{prefix}$3" in names
+
+
+def test_comptime_same_name_different_scopes(qualifier):
+    def first_scope():
+        @guppy.comptime
+        def same_name() -> int:
+            return 1
+
+        return same_name
+
+    def second_scope():
+        @guppy.comptime
+        def same_name() -> int:
+            return 2
+
+        return same_name
+
+    first = first_scope()
+    second = second_scope()
+
+    @guppy
+    def main() -> int:
+        return first() + second()
+
+    names = _func_names(main.with_minimal_opt().compile())
+    prefix = f"{qualifier}.<locals>"
+    assert f"{prefix}.first_scope.<locals>.same_name" in names
+    assert f"{prefix}.second_scope.<locals>.same_name" in names

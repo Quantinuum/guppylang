@@ -1,5 +1,38 @@
+from __future__ import annotations
+
 import inspect
-from types import FrameType, TracebackType
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from types import CodeType, FrameType, TracebackType
+
+
+@dataclass(frozen=True)
+class FrameSnapshot:
+    """Definition scope and source information without retaining caller frames.
+
+    Using a FrameSnapshot rather than a FrameType helps avoid retaining the
+    entire call stack in memory.
+    """
+
+    f_locals: dict[str, Any]
+    f_globals: dict[str, Any]
+    f_builtins: dict[str, Any]
+    f_code: CodeType
+    f_back: None = None
+
+    @classmethod
+    def from_frame(cls, frame: FrameType) -> FrameSnapshot:
+        """Copy locals after checking, when forward definitions are available."""
+        # On Python 3.13+, f_locals is a proxy that itself retains the frame.
+        # Module namespaces are already ordinary dictionaries and must stay live.
+        locals = (
+            frame.f_globals
+            if frame.f_locals is frame.f_globals
+            else dict(frame.f_locals)
+        )
+        return cls(locals, frame.f_globals, frame.f_builtins, frame.f_code)
 
 
 def get_calling_frame(*, skip_main_lang: bool = True) -> FrameType:

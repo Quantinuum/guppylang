@@ -178,6 +178,8 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
 
         self.dfg[lhs.rhs_var.place] = port
         array = self.expr_compiler.visit_DesugaredArrayComp(lhs.compr)
+        # Note we had to register the effects of this when building the IterableUnpack
+        # in stmt_checker._check_unpackable
         unpack = ArrayUnpack(lhs.pattern, length, lhs.compr.elt_ty)
         self._assign_array(unpack, array)
 

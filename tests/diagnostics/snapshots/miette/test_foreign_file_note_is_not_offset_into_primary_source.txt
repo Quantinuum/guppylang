@@ -1,0 +1,10 @@
+  x Can't compare apples with oranges
+   ,----
+ 1 | use Other
+   :     ^^|^^
+   :       `-- Comparison attempted here
+   `----
+
+Note: `Other` defined here (at other.py:1:6)
+1 | class Other:
+  |       -----

@@ -1,5 +1,8 @@
+import pytest
+
 from guppylang import guppy
 from guppylang.std.builtins import owned, output
+from guppylang.std.num import nat
 from guppylang.std.quantum import h, measure, qubit, x
 from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.std.random import seeded_pcg32
@@ -37,6 +40,57 @@ def test_pcg32_sequence_seed_2(run_int_fn) -> None:
         return first
 
     run_int_fn(main, -8000311)
+
+
+@pytest.mark.parametrize("seed", [1, 2, 54])
+@pytest.mark.parametrize("delta", [0, 1, 2, 31, 64, 1000])
+def test_pcg32_random_advance(run_int_fn, seed: int, delta: int) -> None:
+    @guppy
+    def main(seed: int, delta: int) -> int:
+        jumped = seeded_pcg32(nat(seed))
+        drawn = seeded_pcg32(nat(seed))
+        jumped.random_advance(delta)
+        for _ in range(delta):
+            _ = drawn.next_int()
+        if jumped._state != drawn._state or jumped._inc != drawn._inc:
+            return 1
+        if jumped.next_int() != drawn.next_int():
+            return 1
+        return jumped.next_int() - drawn.next_int()
+
+    run_int_fn(main, 0, args=[seed, delta])
+
+
+@pytest.mark.parametrize("delta", [1, 2, 31, 1000])
+def test_pcg32_random_advance_backtrack(run_int_fn, delta: int) -> None:
+    @guppy
+    def main(delta: int) -> int:
+        rng = seeded_pcg32(54)
+        original_state = rng._state
+        for _ in range(delta):
+            _ = rng.next_int()
+        rng.random_advance(-delta)
+        if rng._state != original_state:
+            return 0
+        return rng.next_int()
+
+    run_int_fn(main, -1587805513, args=[delta])
+
+
+def test_pcg32_random_advance_signed_limits(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        rng = seeded_pcg32(54)
+        original_state = rng._state
+        # These three jumps total zero and exercise both signed limits.
+        rng.random_advance(-9223372036854775808)
+        rng.random_advance(9223372036854775807)
+        rng.random_advance(1)
+        if rng._state != original_state:
+            return 0
+        return rng.next_int()
+
+    run_int_fn(main, -1587805513)
 
 
 def test_pcg32_deterministic_sequence(run_int_fn) -> None:
@@ -136,6 +190,30 @@ def test_pcg32_matches_qsystem_random() -> None:
     assert results["pcg_bnd2"] == results["qsys_bnd2"] == [1]
     assert results["pcg_bnd6"] == results["qsys_bnd6"] == [0]
     assert results["pcg_bnd100"] == results["qsys_bnd100"] == [27]
+
+
+@pytest.mark.parametrize("seed", [1, 54, 55555])
+@pytest.mark.parametrize("delta", [0, 1, 31, 1000, -1, -31, -1000, -(2**63), 2**63 - 1])
+def test_pcg32_random_advance_matches_qsystem_random(
+    run_int_fn, seed: int, delta: int
+) -> None:
+    """Local and platform RNG jumps produce the same subsequent outputs."""
+    from guppylang.std.qsystem.random import RNG
+
+    @guppy
+    def main(seed: int, delta: int) -> int:
+        pcg = seeded_pcg32(nat(seed))
+        qsys = RNG(seed)
+        pcg.random_advance(delta)
+        qsys.random_advance(delta)
+        matches = True
+        for _ in range(3):
+            if pcg.next_int() != qsys.random_int():
+                matches = False
+        qsys.discard()
+        return 0 if matches else 1
+
+    run_int_fn(main, 0, args=[seed, delta])
 
 
 def test_pcg32_no_interference_with_quantum() -> None:

@@ -364,7 +364,9 @@ def check_signature(
     # Figure out if this is a method
     self_defn: ProtocolDef | TypeDef | None = None
     inputs = []
-    ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
+    ctx = TypeParsingCtx(
+        globals, param_var_mapping, allow_free_vars=True, is_signature=def_id
+    )
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
 
     # Check if method doesn't have any arguments.

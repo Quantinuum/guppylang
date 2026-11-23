@@ -1,0 +1,9 @@
+Error: Incompatible callable bounds (at $FILE:9:8)
+  | 
+7 |     F: (
+8 |         Daggerable[[qubit], None],
+9 |         Controllable[[int], None],
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^ Expected callable signature `qubit -> None`, got `int ->
+  |                                   None`
+
+Guppy compilation failed due to 1 previous error

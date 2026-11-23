@@ -18,13 +18,20 @@ from guppylang_internals.metadata.debug_info_util import (
     debug_conditions_fulfilled,
     make_location_record,
 )
-from guppylang_internals.tys import Effect
+from guppylang_internals.tys import (
+    BaseEffect,
+    Effect,
+    EffectType,
+    StronglyOrdered,
+    WeaklyOrdered,
+    extract_effect_types,
+)
 
-type OpWithEffects = tuple[DataflowOp, Iterable[Effect]]
+type OpWithEffects = tuple[DataflowOp, Iterable[Effect | EffectType]]
 
 
 def pure(op: DataflowOp) -> OpWithEffects:
-    return (op, [])
+    return op, ()
 
 
 @dataclass
@@ -39,11 +46,21 @@ class DFBuilder(ABC, ToNode):
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
-    _last_side_effect: dict[Effect, Node] = field(default_factory=dict, init=False)
+    _last_node_with_strong: dict[BaseEffect, Node] = field(
+        default_factory=dict, init=False
+    )
+    # The nodes which have had a partially-ordered effect on the key
+    # since the last totally-ordered effect.
+    _last_nodes_with_weak: dict[BaseEffect, list[Node]] = field(
+        default_factory=dict, init=False
+    )
 
     @property
-    def effects(self) -> Iterable[Effect]:
-        return self._last_side_effect.keys()
+    def effects(self) -> Iterable[EffectType]:
+        return [
+            *[StronglyOrdered(e) for e in self._last_node_with_strong],
+            *[WeaklyOrdered(e) for e in self._last_nodes_with_weak],
+        ]
 
     @abstractproperty
     def _raw(self) -> hf.Function | Case | TailLoop | Block:
@@ -86,9 +103,7 @@ class DFBuilder(ABC, ToNode):
 
     def set_outputs(self, *outputs: Wire) -> hf.Function | Case | TailLoop | Block:
         self._raw.set_outputs(*outputs)
-        self._handle_side_effects(
-            self._raw.output_node, list(self._last_side_effect.keys())
-        )
+        self._handle_side_effects(self._raw.output_node, self.effects)
         return self._raw
 
     def add_op(
@@ -103,7 +118,7 @@ class DFBuilder(ABC, ToNode):
         """
         op, effects = op
         op_node = self._raw.add_op(op, *args)
-        self._handle_side_effects(op_node, effects)
+        self._handle_side_effects(op_node, extract_effect_types(effects))
 
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
@@ -112,27 +127,61 @@ class DFBuilder(ABC, ToNode):
             )
         return op_node
 
-    def _handle_side_effects(self, op_node: ToNode, effects: Iterable[Effect]) -> None:
+    def _handle_side_effects(
+        self, op_node: ToNode, effects: Iterable[EffectType]
+    ) -> None:
         """Updates Hugr to reflect `op_node` having effects `effects`.
         Does nothing if effects is empty (or the node already has those effects)."""
         node = op_node.to_node()
+        effects = list(effects)
         to_propagate = set()  # Effects newly added to our container
 
-        def get_prev_node(e: Effect) -> Node:
-            """Gets the previous node that had the given effect,
-            or Input (marking this container as having that effect) if none.
-            Then records the current `node` as the last node, for any later call."""
+        def get_prev_nodes(e: EffectType) -> Iterable[Node]:
+            """Gets the previous node that had the given effect, i.e. the node after
+            which `node` should be ordered. Returns the Input (marking this container
+            as having that effect) if none."""
+            last_strong = self._last_node_with_strong.get(e.base)
+            if last_strong is node:
+                return []  # Avoid a self cycle
 
-            last = self._last_side_effect.get(e)
-            if last is None:
+            last_weak = self._last_nodes_with_weak.get(e.base, ())
+            if last_weak and (
+                # If there are any accumulated nodes that weakly required this effect,
+                # and we have a strongly ordered requirement, reset weak requirements
+                # and return the nodes.
+                isinstance(e, StronglyOrdered)
+                # Do this for the final output node of the region as well to close the
+                # diamond of order edges.
+                or isinstance(self._raw.hugr[node].op, Output)
+            ):
+                self._last_nodes_with_weak.pop(e.base, ())
+                return last_weak
+
+            # No weak nodes found, or effect was not strongly required ...
+            # ... if there was a last strong requirement, add an edge to that node ...
+            if last_strong is not None:
+                assert not isinstance(self._raw.hugr[last_strong].op, Output)
+                return [last_strong]
+
+            # ... otherwise this is either a completely new effect or there have only
+            # been weak references to it so far.
+
+            # Check whether it is completely new, and propagate to the outer container
+            # if required.
+            if (
+                isinstance(e, StronglyOrdered)
+                or e.base not in self._last_nodes_with_weak
+            ):
                 to_propagate.add(e)
-                last = self.input_node
-            else:
-                assert not isinstance(self._raw.hugr[last].op, Output)
-            self._last_side_effect[e] = node
-            return last
+            return [self.input_node]
 
-        prev_nodes = {get_prev_node(e) for e in effects}
+        def record_effect(e: EffectType) -> None:
+            if isinstance(e, StronglyOrdered):
+                self._last_node_with_strong[e.base] = node
+            else:
+                self._last_nodes_with_weak.setdefault(e.base, []).append(node)
+
+        prev_nodes = {n for e in effects for n in get_prev_nodes(e)}
         prev_nodes.discard(node)  # Avoid cycles
         # Avoid duplicate Order edges when two nodes share multiple effects:
         for prev in self._raw.hugr.incoming_order_links(node):
@@ -141,11 +190,14 @@ class DFBuilder(ABC, ToNode):
         for prev in prev_nodes:
             self._raw.add_state_order(prev, node)
 
+        for e in effects:
+            record_effect(e)
+
         if to_propagate:
             self._propagate_side_effects(to_propagate)
 
     @abstractmethod
-    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
+    def _propagate_side_effects(self, effects: Iterable[EffectType]) -> None:
         """Subclasses must implement to mark the container node
         as having the given Effects within any parent/ancestor builder."""
 
@@ -164,7 +216,7 @@ class DFBuilder(ABC, ToNode):
         call = self._raw.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
-        self._handle_side_effects(call, effects)
+        self._handle_side_effects(call, extract_effect_types(effects))
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             self._raw.hugr[call].metadata[HugrDebugInfo] = make_location_record(
@@ -222,17 +274,15 @@ class TailLoopBuilder(_DFBuilderRaw[TailLoop]):
 
     def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
         self._raw.set_loop_outputs(predicate, *outputs)
-        self._handle_side_effects(
-            self._raw.output_node, list(self._last_side_effect.keys())
-        )
+        self._handle_side_effects(self._raw.output_node, self.effects)
 
-    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
+    def _propagate_side_effects(self, effects: Iterable[EffectType]) -> None:
         self.parent._handle_side_effects(self._raw, effects)
 
 
 @dataclass
 class FunctionBuilder(_DFBuilderRaw[hf.Function]):
-    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
+    def _propagate_side_effects(self, effects: Iterable[EffectType]) -> None:
         pass  # No parent
 
     @override
@@ -246,7 +296,7 @@ class CaseBuilder(_DFBuilderRaw[Case]):
     parent: Conditional
     grandparent: DFBuilder
 
-    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
+    def _propagate_side_effects(self, effects: Iterable[EffectType]) -> None:
         # No need to do anything in the Conditional,
         # but the Conditional itself needs to be ordered inside its parent
         self.grandparent._handle_side_effects(self.parent, effects)
@@ -284,13 +334,11 @@ class BlockBuilder(_DFBuilderRaw[Block]):
     parent: Cfg
     grandparent: DFBuilder
 
-    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
+    def _propagate_side_effects(self, effects: Iterable[EffectType]) -> None:
         # No need to do anything in the CFG, but the CFG itself
         # needs to be ordered inside its parent,
         self.grandparent._handle_side_effects(self.parent, effects)
 
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
         self._raw.set_outputs(branching, *other_outputs)
-        self._handle_side_effects(
-            self._raw.output_node, list(self._last_side_effect.keys())
-        )
+        self._handle_side_effects(self._raw.output_node, self.effects)

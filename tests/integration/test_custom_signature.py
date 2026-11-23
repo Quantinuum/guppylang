@@ -21,7 +21,7 @@ ty = FunctionType(
 
 
 # Create hugr_op using custom signature
-@hugr_op(int_op("iadd"), signature=ty)
+@hugr_op(int_op("iadd"), signature=ty, effects=())
 def fake_iadd(*args) -> None: ...
 
 

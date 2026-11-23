@@ -111,5 +111,5 @@ jobs:
       - name: Run docs build
         run: |
           cd guppy-docs
-          just build-docs
+          just build-docs -W
 

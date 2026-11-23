@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:26:12)
+   | 
+24 |     a = tq
+25 |     with control(c):
+26 |         use(tq.i)
+   |             ^^^^ Field `tq.i` cannot be consumed ...
+
+Note:
+   | 
+23 |     c = qubit()
+24 |     a = tq
+   |         -- ... since variable `tq` with non-copyable type `TwoQubits`
+   |            was already moved here
+
+Guppy compilation failed due to 1 previous error

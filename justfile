@@ -18,6 +18,9 @@ check:
 # Run the tests.
 test *PYTEST_FLAGS:
     uv run pytest -n auto {{PYTEST_FLAGS}}
+# Update the test snapshots.
+update-snapshots *PYTEST_FLAGS:
+    uv run pytest -n auto --snapshot-update {{PYTEST_FLAGS}}
 
 # Export the integration test cases to a directory.
 export-integration-tests directory="guppy-exports":
@@ -68,6 +71,7 @@ bench-upload *BENCHER_FLAGS:
            --benchmark-only \
            --benchmark-quiet \
            --benchmark-json="{{NOW}}-pytest-benchmark.json" \
+           -p no:nb_regression \
            -k "compile"
     uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
@@ -84,6 +88,7 @@ bench-compare *BENCHER_FLAGS:
            --benchmark-only \
            --benchmark-quiet \
            --benchmark-json="{{NOW}}-pytest-benchmark.json" \
+           -p no:nb_regression \
            -k "compile"
     uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \

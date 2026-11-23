@@ -164,10 +164,16 @@ class TraceRecorder:
         """Records a load_function to replay during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
-        node = get_tracing_state().node
+        state = get_tracing_state()
+        node = state.node
 
         if isinstance(defn, CheckableGenericDef):
             ENGINE.register_generic_use(defn, type_args)
+
+        # Traced function values bypass expression checking. Record their loads too,
+        # so modifier analysis reaches bodies returned by comptime factories.
+        if state.current_caller is not None:
+            ENGINE.register_load(state.current_caller, (defn.id, type_args))
 
         return self._add(TraceFunctionLoad(defn.id, type_args, node))
 

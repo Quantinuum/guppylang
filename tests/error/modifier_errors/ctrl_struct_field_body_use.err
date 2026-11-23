@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:15:10)
+   | 
+13 | def test(tq: TwoQubits) -> None:
+14 |     with control(tq.a):
+15 |         x(tq.a)
+   |           ^^^^ Field `tq.a` with non-copyable type `qubit` cannot be
+   |                borrowed ...
+
+Note:
+   | 
+13 | def test(tq: TwoQubits) -> None:
+14 |     with control(tq.a):
+   |                  ---- Field `tq.a` already borrowed here
+
+Guppy compilation failed due to 1 previous error

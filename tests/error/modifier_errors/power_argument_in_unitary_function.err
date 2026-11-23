@@ -1,0 +1,12 @@
+Error: Unitary constraint violation (at $FILE:13:15)
+   | 
+11 | @guppy(unitary=True)
+12 | def main(q: qubit) -> None:
+13 |     with power(exponent()):
+   |                ^^^^^^^^^^ This function cannot be called in a unitary context
+
+Help: Consider adding the flag `(unitary=True)` to the decorator of the function
+`exponent` or adding custom `ctrl_daggered` and `controlled` implementations
+using the `@guppy.unitary` decorator
+
+Guppy compilation failed due to 1 previous error

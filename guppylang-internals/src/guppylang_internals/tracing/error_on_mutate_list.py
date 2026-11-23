@@ -9,7 +9,7 @@ ERROR_MSG = (
 )
 
 
-class frozenlist(list):  # type: ignore[type-arg]
+class ErrorOnMutateList(list):  # type: ignore[type-arg]
     """An immutable list subclass.
 
     Raises a `GuppyComptimeError` for any operation that would mutate the list.

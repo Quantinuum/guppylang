@@ -1,0 +1,11 @@
+Error: Type mismatch (at $FILE:9:11)
+  | 
+7 | def foo[n: nat]() -> array[int, "comptime(2 * n)"]:
+8 |     # This is wrong, but only for certain values of n:
+9 |     return array(0 for _ in range(comptime(n ** 2)))
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected expression of type `array[int, 2]`, got `array[int,
+  |                                                      1]`
+
+Note: Error occurred while checking the instantiation `n := 1`
+
+Guppy compilation failed due to 1 previous error

@@ -7,6 +7,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from hugr.package import Package
 
 from guppylang.defs import GuppyDefinition, _update_generator_metadata
+from guppylang.optimizer import LibraryOptimizerInstance, OptimizationLevel
 
 _LINK_NAME_METADATA_KEY = "guppylang.library.annotated_link_name"
 
@@ -53,7 +54,23 @@ class GuppyLibrary:
         return members
 
     def compile(self) -> Package:
-        """Compile this collection of definitions into a HUGR package."""
+        """Compile this collection with the default optimization level.
+
+        Use :py:meth:`with_opt_level` or :py:meth:`with_minimal_opt` to configure
+        optimization before compiling.
+        """
+        return self.with_opt_level(OptimizationLevel.Default).compile()
+
+    def with_opt_level(self, level: OptimizationLevel) -> LibraryOptimizerInstance:
+        """Configure the optimization level used when compiling this library."""
+        return LibraryOptimizerInstance(self, level.passes())
+
+    def with_minimal_opt(self) -> LibraryOptimizerInstance:
+        """Compile with minimal optimization, disabling optional passes."""
+        return self.with_opt_level(OptimizationLevel.Minimal)
+
+    def _compile(self) -> Package:
+        """Compile this collection without applying optimization passes."""
         ENGINE.check(self.members)
         # Check fills _type_members with additional members only available after
         # checking, so we have to call it before compiling (without an engine reset).

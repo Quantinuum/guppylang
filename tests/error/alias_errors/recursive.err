@@ -1,8 +1,9 @@
-Error: Unsupported (at $FILE:4:0)
+Error: Recursive type definition (at $FILE:4:0)
   | 
 2 | 
 3 | 
 4 | MyAlias = guppy.type_alias("MyAlias", "MyAlias")
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Recursive definitions are not supported
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type cycle detected:
+  |                                                  `MyAlias` -> `MyAlias`
 
 Guppy compilation failed due to 1 previous error

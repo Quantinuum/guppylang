@@ -7,6 +7,7 @@ from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import Transformer, Visitor
 from guppylang_internals.tys.const import (
     BoundConstVar,
+    ComptimeConstValue,
     Const,
     ConstBase,
     ExistentialConstVar,
@@ -68,9 +69,16 @@ class Substituter(Transformer):
 class Instantiator(Transformer):
     """Type transformer that instantiates bound variables."""
 
-    def __init__(self, inst: PartialInst, allow_partial: bool = False) -> None:
+    def __init__(
+        self,
+        inst: PartialInst,
+        *,
+        allow_partial: bool = False,
+        require_monomorphization: bool = True,
+    ) -> None:
         self.allow_partial = allow_partial
         self.inst = inst
+        self.require_monomorphization = require_monomorphization
 
     def transform(self, ty: Any) -> Any | None:
         match ty:
@@ -84,6 +92,8 @@ class Instantiator(Transformer):
                 return self._transform_FunctionType(ty)
             case ProtocolInst():
                 return self._transform_ProtocolInst(ty)
+            case ComptimeConstValue():
+                return self._transform_ComptimeConstValue(ty)
             case _:
                 return None
 
@@ -128,6 +138,22 @@ class Instantiator(Transformer):
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
+
+    def _transform_ComptimeConstValue(self, val: ComptimeConstValue) -> Const:
+        # Update the stored instantiation
+        idx = 0
+        new_inst: list[Argument | None] = []
+        for arg in val.inst:
+            if arg:
+                new_inst.append(arg)
+            else:
+                new_inst.append(self.inst[idx])
+                idx += 1
+
+        ty = val.ty.transform(self)
+        return ComptimeConstValue(
+            ty, val.expr, val.params, new_inst, val.containing_def_id
+        ).try_resolve(self.require_monomorphization)
 
     def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
         return inst.transform(self)

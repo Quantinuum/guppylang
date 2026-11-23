@@ -13,6 +13,7 @@ from guppylang_internals.definition.custom import (
     CustomCallChecker,
     CustomCallCompiler,
     CustomInoutCallCompiler,
+    DefaultCallChecker,
 )
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.diagnostic import Error, Help, Note
@@ -35,6 +36,12 @@ from guppylang_internals.tys.ty import NumericType, Type
 
 #: Maximum length of a tag in the `output` function.
 TAG_MAX_LEN = 200
+
+
+class ArrayOutputChecker(DefaultCallChecker):
+    """Call checker for array outputs, which leave their borrowed array unchanged."""
+
+    preserves_static_inout_values = True
 
 
 @dataclass(frozen=True)
@@ -67,7 +74,7 @@ class OutputCompiler(CustomCallCompiler):
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
-        self.builder.add_op((op.instantiate(args, sig), [Effect.ANY]), value)
+        self.builder.add_op((op.instantiate(args, sig), [Effect.OUTPUT]), value)
         return []
 
 
@@ -106,7 +113,7 @@ class ArrayOutputCompiler(CustomInoutCallCompiler):
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = ops.ExtOp(RESULT_EXTENSION.get_op(self.op_name), signature=sig, args=args)
-        self.builder.add_op((op, [Effect.ANY]), arr)
+        self.builder.add_op((op, [Effect.OUTPUT]), arr)
         return CallReturnWires([], [out_arr])
 
 

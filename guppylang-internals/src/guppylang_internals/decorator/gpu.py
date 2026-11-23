@@ -14,6 +14,7 @@ from guppylang_internals.std._internal.compiler.gpu import (
     GpuModuleInitCompiler,
 )
 from guppylang_internals.std._internal.decorator import ext_module_decorator
+from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
     import ast
@@ -39,8 +40,8 @@ def gpu_module[T](
 
     create_decorator = ext_module_decorator(  # type: ignore[var-annotated]
         type_def_wrapper,
-        GpuModuleInitCompiler(),
-        GpuModuleDiscardCompiler(),
+        (GpuModuleInitCompiler(), [Effect.PANIC]),
+        (GpuModuleDiscardCompiler(), []),
         init_arg=False,
     )
     return create_decorator(filename, config_filename)

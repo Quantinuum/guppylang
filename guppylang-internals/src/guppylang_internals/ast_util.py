@@ -1,8 +1,8 @@
 import ast
 import textwrap
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast, overload
 
 if TYPE_CHECKING:
     from guppylang_internals.tys.ty import Type
@@ -446,3 +446,36 @@ def fake_call(name: str, loc_from: ast.AST, args: list[ast.expr]) -> ast.Call:
     call = ast.Call(func=ast.Name(id=name, ctx=ast.Load()), args=args, keywords=[])
     set_location_from(call, loc_from)
     return call
+
+
+@dataclass(frozen=True)
+class frozenlist[T](Sequence[T]):
+    """A type of immutable lists.
+
+    This type is used as an intermediate, hashable, representation between
+    Python lists and frozen array. See also `python_value_to_guppy` in
+    `guppylang_internals.checker.expr_checker`.
+
+    Why define a new (disjoint) type instead of using `tuple`? Because `tuple`
+    is already used to represent Guppy's tuples. We need disjoint Python types
+    for different Guppy types because we infer the corresponding Guppy type from
+    Python type tag in functions such as `python_value_to_guppy` and
+    `python_value_to_hugr`.
+    """
+
+    contents: tuple[T, ...]
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self.contents)
+
+    def __len__(self) -> int:
+        return len(self.contents)
+
+    @overload
+    def __getitem__(self, index: int) -> T: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> tuple[T, ...]: ...
+
+    def __getitem__(self, index: int | slice) -> T | tuple[T, ...]:
+        return self.contents[index]

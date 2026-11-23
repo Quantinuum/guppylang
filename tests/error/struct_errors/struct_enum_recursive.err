@@ -1,8 +1,19 @@
-Error: Unsupported (at $FILE:5:22)
+Error: Recursive type definition (at $FILE:5:22)
   | 
 3 | @guppy.enum
 4 | class MyEnum:
 5 |     Variant1 = {"x": "MyStruct"}
-  |                       ^^^^^^^^ Recursive definitions are not supported
+  |                       ^^^^^^^^ Type cycle detected:
+  |                                `MyStruct` -> `MyEnum` -> `MyStruct`
+
+Notes:
+  | 
+7 | @guppy.struct
+8 | class MyStruct:
+  | --------------- `MyStruct` defined here
+
+3 | @guppy.enum
+4 | class MyEnum:
+  | ------------- `MyEnum` defined here
 
 Guppy compilation failed due to 1 previous error

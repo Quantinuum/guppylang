@@ -45,6 +45,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PlaceNode,
 )
+from guppylang_internals.std._internal.compiler.array import check_empty_array_elem_ty
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
@@ -61,7 +62,7 @@ from guppylang_internals.tys.builtin import (
     string_type,
 )
 from guppylang_internals.tys.const import Const, ConstValue
-from guppylang_internals.tys.subst import Subst
+from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -192,6 +193,38 @@ class ArrayCopyChecker(CustomCallChecker):
         return with_loc(self.node, node), get_type(array_arg)
 
 
+class EmptyArrayChecker(CustomCallChecker):
+    """Function call checker for the `empty_array` function.
+
+    Reports copyable element types at check time where possible. Note that explicitly
+    type-applied calls and generic instantiations bypass this checker, so the
+    restriction is also enforced by `EmptyArrayCompiler`.
+    """
+
+    def _check_elem_ty(self, inst: Inst, subst: Subst) -> None:
+        match inst:
+            case [TypeArg(ty=elem_ty), _]:
+                check_empty_array_elem_ty(elem_ty.substitute(subst), self.node)
+            case _:
+                raise InternalGuppyError("Invalid `empty_array` type args")
+
+    @override
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        args, subst, inst = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
+        self._check_elem_ty(inst, subst)
+        return with_loc(self.node, make_global_call(self.func, args, inst)), subst
+
+    @override
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        args, ty, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func
+        )
+        self._check_elem_ty(inst, {})
+        return with_loc(self.node, make_global_call(self.func, args, inst)), ty
+
+
 class ArrayIndexChecker(CustomCallChecker):
     """Performs compile-time bounds checking for array indexing.
 
@@ -279,6 +312,16 @@ class ArrayIndexChecker(CustomCallChecker):
             self.func.ty, args, ty, self.node, self.ctx, self.func
         )
 
+        assert isinstance(type_args[0], TypeArg)
+        if type_args[0].ty.copyable:
+            # Preserving legacy behaviour for linear types - these compile to
+            # borrow/return, which may panic, but in order to support optimization,
+            # we do not totally order such accesses, see https://github.com/Quantinuum/guppylang/issues/2122.
+            # However for copyable types we compile a separate unwrap in the panic
+            # chain; this is not included in the effects for __getitem__ (as these
+            # cannot depend upon type bound), so record that here.
+            register_effects(self.ctx, [Effect.PANIC])
+
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
@@ -294,6 +337,11 @@ class ArrayIndexChecker(CustomCallChecker):
         args, ty, type_args = synthesize_call(
             self.func.ty, args, self.node, self.ctx, self.func
         )
+
+        assert isinstance(type_args[0], TypeArg)
+        if type_args[0].ty.copyable:
+            # As self.check(...)
+            register_effects(self.ctx, [Effect.PANIC])
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
@@ -495,7 +543,7 @@ class AbortChecker(CustomCallChecker):
                     signal=signal,
                 )
                 # Since we don't check_call or synthesize_call:
-                register_effects(self.ctx, [Effect.ANY])
+                register_effects(self.ctx, self.exit_kind.effects)
                 return with_loc(self.node, node), NoneType()
 
             case args:
@@ -524,6 +572,14 @@ def to_sized_iter(
 
 class BarrierChecker(CustomCallChecker):
     """Call checker for the `barrier` function."""
+
+    preserves_static_inout_values = True
+
+    @override
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        # Unlike ordinary borrows, barriers forward copyable values too. This ensures
+        # that subsequent operations depend on the barrier's output wires.
+        return [InputFlags.Inout] * len(args)
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
