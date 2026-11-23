@@ -83,7 +83,7 @@ def test_int(validate):
             obj_qual = "guppylang_internals.tracing.object.GuppyObject"
             err = re.escape(f"{obj_qual}.__int__() must return an int, not {obj_qual}")
         else:
-            err = re.escape("GuppyObject.__int__ returned non-int (type GuppyObject)")
+            err = re.escape("__int__ returned non-int (type GuppyObject)")
         with pytest.raises(TypeError, match=err):
             builtins.int(x)
         return int(x)
