@@ -93,3 +93,71 @@ def test_higher_order_daggerable(validate):
         discard_array(qs)
 
     validate(main.compile())
+
+
+def test_dunder_generic_struct(validate):
+    @guppy.struct(frozen=True)
+    class Constant[T: (Copy, Drop)]:
+        value: T
+
+        @guppy
+        def __call__(self) -> T:
+            return self.value
+
+    @guppy
+    def apply[T](f: Callable[[], T]) -> T:
+        return f()
+
+    @guppy
+    def main() -> int:
+        return apply(Constant(42)) if apply(Constant(True)) else 0
+
+    validate(main.compile())
+
+
+def test_dunder_inference_both_ways(validate):
+    """Tests that type inference can solve variables occurring in `Callable` at the same
+    time as variables in the `__call__` method that is checked against it.
+    """
+
+    @guppy.struct(frozen=True)
+    class S:
+        x: int
+
+        @guppy
+        def __call__[T: Drop](self, x: T) -> int:
+            return self.x
+
+    @guppy
+    def foo[T](f: Callable[[float], T]) -> T:
+        return f(1.5)
+
+    @guppy
+    def main() -> int:
+        return foo(S(1)) + foo(S(2))
+
+    validate(main.compile())
+
+
+def test_dunder_explicit_protocol_bound(validate):
+    @guppy.struct(frozen=True)
+    class Add:
+        offset: int
+
+        @guppy
+        def __call__(self, x: int) -> int:
+            return self.offset + x
+
+    @guppy.struct
+    class Wrapper[F: (Callable[[int], int], Copy, Drop)]:
+        f: F
+
+        @guppy
+        def call(self) -> int:
+            return self.f(2)
+
+    @guppy
+    def main() -> int:
+        return Wrapper(Add(40)).call()
+
+    validate(main.compile())
