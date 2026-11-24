@@ -168,7 +168,7 @@ def check_protocol_member_implemented(
     subst: Subst,
     loc: ToSpan | None,
 ) -> tuple[tuple[DefId, Inst], Subst]:
-    """Checks that a type implements a single member required by a protocol.
+    """Checks that a type implements a single member `name` required by a protocol.
 
     The returned substitution may contain solutions for existential variables in
     `protocol` that could be inferred.
