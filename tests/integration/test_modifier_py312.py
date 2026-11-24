@@ -9,7 +9,9 @@ from guppylang.std.builtins import (
     dagger,
     nat,
 )
-from guppylang.std.quantum import h, qubit
+from guppylang.std.quantum import discard, h, measure, qubit, x
+from guppylang_internals.metadata.common import ControlledImplementations
+from hugr.ops import FuncDefn
 
 
 def test_generic_nat_in_dagger(validate):
@@ -78,3 +80,52 @@ def test_higher_order_unitary_callable(validate):
         apply_unitary(foo, q1, q2)
 
     validate(main.compile_function())
+
+
+def test_custom_control_with_same_named_callbacks(run_int_fn):
+    def make_gate(flip: bool):
+        @guppy.comptime(unitary=True)
+        def gate(q: qubit) -> None:
+            if flip:
+                x(q)
+
+        return gate
+
+    identity = make_gate(False)
+    flip = make_gate(True)
+
+    @guppy.unitary
+    class apply[G: Unitary[[qubit], None]]:
+        @guppy(unitary=True)
+        def __call__(q: qubit, gate: G) -> None:
+            gate(q)
+
+        @guppy
+        def controlled[n: nat](q: qubit, gate: G, controls: array[qubit, n]) -> None:
+            with control(controls):
+                gate(q)
+
+    @guppy
+    def main() -> int:
+        flag, target = qubit(), qubit()
+        x(flag)
+        with control(flag):
+            apply(target, identity)
+            apply(target, flip)
+        discard(flag)
+        return int(measure(target).read())
+
+    hugr = main.with_minimal_opt().compile().modules[0]
+    controlled_names = [
+        name
+        for _, data in hugr.nodes()
+        if ControlledImplementations.KEY in data.metadata
+        for name in data.metadata[ControlledImplementations.KEY]
+    ]
+    assert len(controlled_names) == len(set(controlled_names)) == 2
+    functions = [
+        data.op.f_name for _, data in hugr.nodes() if isinstance(data.op, FuncDefn)
+    ]
+    assert all(functions.count(name) == 1 for name in controlled_names)
+
+    run_int_fn(main, expected=1, num_qubits=2)

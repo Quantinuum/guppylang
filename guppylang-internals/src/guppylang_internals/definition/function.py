@@ -95,7 +95,7 @@ def default_func_link_name(
 
 
 def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
-    """Returns a unique link name for the monomorphized version of a function.
+    """Returns the preferred link name for the monomorphized version of a function.
 
     If the function is not generic, then the original link name is preserved.
     """
@@ -343,8 +343,11 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         `CompiledFunctionDef.compile_inner()`.
         """
         hugr_ty = self.ty.to_hugr_poly(ctx)
+        link_name = self.link_name
+        if self.mono_args:
+            link_name = ctx.specialization_link_name(link_name)
         func_def = module.module_root_builder().define_function(
-            self.link_name,
+            link_name,
             hugr_ty.body.input,
             hugr_ty.body.output,
             hugr_ty.params,
@@ -363,7 +366,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.docstring,
-            self.link_name,
+            link_name,
             self.mono_args,
             self.cfg,
             FunctionBuilder(func_def),
