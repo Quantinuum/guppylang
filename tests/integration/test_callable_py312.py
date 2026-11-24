@@ -115,7 +115,11 @@ def test_dunder_generic_struct(validate):
     validate(main.compile())
 
 
-def test_dunder_infer_cross(validate):
+def test_dunder_inference_both_ways(validate):
+    """Tests that type inference can solve variables occurring in `Callable` at the same
+    time as variables in the `__call__` method that is checked against it.
+    """
+
     @guppy.struct(frozen=True)
     class S:
         x: int
