@@ -144,11 +144,11 @@ def check_protocol(
     for name in protocol_def.member_defs:
         proto_sig = protocol_def.member_sig(name)
         is_static = ENGINE.is_def_static(protocol_def.member_defs[name])
-        loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name]).defined_at
         if not is_static and (
             not proto_sig.inputs or not isinstance(proto_sig.inputs[0].ty, BoundTypeVar)
         ):
             raise GuppyError(FirstArgNotProtocol(None, protocol_def.name))
+        loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name]).defined_at
         member_impls[name], subst = check_protocol_member_implemented(
             ty, protocol, protocol_def, name, proto_sig, is_static, subst, loc
         )
