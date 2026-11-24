@@ -1725,6 +1725,19 @@ def test_custom_modifier_accepts_docstring(validate) -> None:
     validate(main.compile())
 
 
+def test_signed_division_in_dagger(validate) -> None:
+    @guppy
+    def main(x: int, y: int) -> int:
+        q = qubit()
+        with dagger:
+            z = x // y
+            rz(q, angle(float(z % 4)))
+        discard(q)
+        return 1
+
+    validate(main.compile_function())
+
+
 def test_control_index_not_checked_with_inner_dagger(validate):
     @guppy
     def nested(cs: array[qubit, 2], q: qubit) -> None:

@@ -3,7 +3,7 @@ import pytest
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.angles import angle, pi
-from guppylang.std.builtins import nat
+from guppylang.std.builtins import divmod, nat
 from tests.util import compile_guppy
 
 
@@ -496,3 +496,46 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
     run_float_fn_approx(float_round_neg_digits_tie_down, 120.0)
     run_float_fn_approx(float_round_neg_digits_tie_up, 140.0)
     run_float_fn_approx(float_round_neg_large, 9_223_372_036_854_775_700.0)
+
+
+@pytest.mark.parametrize(
+    ("x", "y"),
+    [
+        (7, 3),
+        (7, -3),
+        (-7, 3),
+        (-7, -3),
+        (6, -3),
+        (-6, -3),
+        (0, -3),
+        (-9_223_372_036_854_775_808, -9_223_372_036_854_775_808),
+        (-9_223_372_036_854_775_808, 3),
+        (-9_223_372_036_854_775_808, -3),
+        (9_223_372_036_854_775_807, -9_223_372_036_854_775_808),
+        (-1, -9_223_372_036_854_775_808),
+        (1, -9_223_372_036_854_775_808),
+    ],
+)
+def test_signed_divisor(run_int_fn, x: int, y: int) -> None:
+    @guppy(daggerable=True)
+    def quotient(a: int, b: int) -> int:
+        return a // b
+
+    @guppy(daggerable=True)
+    def remainder(a: int, b: int) -> int:
+        return a % b
+
+    @guppy(daggerable=True)
+    def divmod_quotient(a: int, b: int) -> int:
+        q, _ = divmod(a, b)
+        return q
+
+    @guppy(daggerable=True)
+    def divmod_remainder(a: int, b: int) -> int:
+        _, r = divmod(a, b)
+        return r
+
+    run_int_fn(quotient, x // y, args=[x, y])
+    run_int_fn(remainder, x % y, args=[x, y])
+    run_int_fn(divmod_quotient, x // y, args=[x, y])
+    run_int_fn(divmod_remainder, x % y, args=[x, y])
