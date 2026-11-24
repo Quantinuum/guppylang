@@ -125,7 +125,7 @@ def test_nested(validate):
     validate(main.compile_function())
 
 
-def test_dunder_callable(validate):
+def test_dunder_callable(validate, run_int_fn):
     @guppy.struct(frozen=True)
     class Counter:
         value: int
@@ -141,12 +141,12 @@ def test_dunder_callable(validate):
 
     @guppy
     def main() -> int:
-        counter = Counter(10)
+        counter = Counter(5)
         inferred = counter(1)
         checked: int = counter(1)
-        return inferred + checked + twice(counter) + counter.value
+        return inferred + 10 * checked + 100 * twice(counter) + 1000 * counter.value
 
-    validate(main.compile())
+    run_int_fn(main, expected=6566)
 
 
 def test_dunder_callable_return_rows(validate):
