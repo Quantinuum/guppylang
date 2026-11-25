@@ -1,0 +1,8 @@
+Error: Immutable (at $FILE:12:4)
+   | 
+10 | def main() -> None:
+11 |     s = S(0.0)
+12 |     s.value = 42
+   |     ^^^^^^^ Struct `S` is immutable
+
+Guppy compilation failed due to 1 previous error
