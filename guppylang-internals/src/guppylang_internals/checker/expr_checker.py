@@ -293,9 +293,19 @@ def record_function_load(node: ast.expr, ty: Type, ctx: Context) -> None:
 
     match node:
         case GlobalName(def_id=def_id):
+            from guppylang_internals.definition.overloaded import (
+                OverloadedFunctionDef,
+                OverloadHigherOrderError,
+            )
+
+            defn = ENGINE.get_parsed(def_id)
+            # Reject values before the overload's dummy signature can cause a
+            # misleading type mismatch. Direct calls do not register loads.
+            if isinstance(defn, OverloadedFunctionDef):
+                raise GuppyError(OverloadHigherOrderError(node, defn.name))
             # Function-valued constants also have FunctionType, but their definition
             # IDs identify constants rather than callable load targets.
-            if isinstance(ENGINE.get_parsed(def_id), CallableDef):
+            if isinstance(defn, CallableDef):
                 ENGINE.register_load(ctx.current_caller, (def_id, inst))
         case TypeApply(value=GlobalName(def_id=def_id), inst=inst):
             # A specialized reference: `g = f[int]`, or `g: Function[[int], int] = f`
@@ -556,7 +566,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             ), subst
 
         elif callee := ENGINE.get_instance_func(func_ty, "__call__"):
-            return callee.check_call(node.args, ty, node, self.ctx)
+            args = node.args if callee.is_static else [node.func, *node.args]
+            return callee.check_call(args, ty, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, func_ty))
 
@@ -1345,7 +1356,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             ), return_ty
 
         elif f := ENGINE.get_instance_func(ty, "__call__"):
-            return f.synthesize_call(node.args, node, self.ctx)
+            args = node.args if f.is_static else [node.func, *node.args]
+            return f.synthesize_call(args, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, ty))
 

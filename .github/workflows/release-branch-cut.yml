@@ -68,6 +68,7 @@ jobs:
           fi
           branch="release/$series"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "series=$series" >> "$GITHUB_OUTPUT"
           echo "Cutting '$branch' from '${{ github.event.inputs.ref }}' (version $version)."
 
       - name: Create the release branch
@@ -82,3 +83,13 @@ jobs:
           git switch -c "$BRANCH"
           git push origin "$BRANCH"
           echo "Created and pushed '$BRANCH'."
+
+      - name: Create a release label
+        env:
+          SERIES: ${{ steps.name.outputs.series }}
+        run: |
+          set -euo pipefail
+          version="v$SERIES.X"
+          label="B-$version"
+          gh label create "$label" -d "To be backported to the $version series" -c "#1b6fa9"
+          echo "Created label '$label'."

@@ -399,8 +399,14 @@ class BBUnitaryChecker(ast.NodeVisitor):
             place = place.parent
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
-        # Nested modified blocks are checked separately by the CFG checker
-        pass
+        # Arguments are evaluated in the enclosing context, not in the body
+        # context that includes this block's modifiers. The CFG checker checks
+        # the body separately.
+        for control in node.control:
+            for arg in control.ctrl:
+                self.visit(arg)
+        for power in node.power:
+            self.visit(power.iter)
 
     def _check_assign(self, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> None:
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
