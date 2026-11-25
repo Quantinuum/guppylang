@@ -43,6 +43,34 @@ class PlaceNode(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
+class CoercedAssign(ast.expr):
+    """An assignment target with a conversion applied to its incoming value.
+
+    The conversion only refers to ``tmp_rhs_var``, whose value is supplied by the
+    assignment compiler. Only the real destination is an AST child: assignment
+    target traversals must not treat the synthetic conversion input as a user
+    variable read or an additional target. The compiler handles the conversion
+    explicitly after binding the incoming wire.
+    """
+
+    target: PlaceNode
+    coerced_value: ast.expr
+    tmp_rhs_var: PlaceNode
+
+    _fields = ("target",)
+
+    def __init__(
+        self, target: PlaceNode, coerced_value: ast.expr, tmp_rhs_var: PlaceNode
+    ) -> None:
+        super().__init__()
+        self.target = target
+        self.coerced_value = coerced_value
+        self.tmp_rhs_var = tmp_rhs_var
+
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
 class GlobalName(ast.Name):
     id: str
     def_id: "DefId"
