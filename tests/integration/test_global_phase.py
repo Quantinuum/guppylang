@@ -2,7 +2,8 @@ from guppylang.std.lang import dagger
 import numpy as np
 
 from guppylang import guppy
-from guppylang.std.angles import pi
+
+from guppylang.std.angles import angle, pi
 from guppylang.std.builtins import control, owned
 from guppylang.std.debug import state_output
 from guppylang.std.global_phase import global_phase
@@ -107,3 +108,68 @@ def test_controlled_diagonal_unitary() -> None:
     circ.add_qcontrolbox(QControlBox(DiagonalBox(diag), 1), [0, 1, 2])
     expected = circ.get_statevector()
     np.testing.assert_allclose(state, expected, atol=1e-6)
+
+
+# Test that adding controls to global phase produces expected unitaries.
+def run_ignoring_phase(main, n_qubits: int) -> np.ndarray:
+    res = main.emulator(n_qubits).statevector_sim().with_shots(1).with_seed(12).run()
+    state = res.partial_state_dicts()[0]["s"].as_single_state()
+    # Divide by the first entry to ignore any global phase difference.
+    return state / state[0]
+
+
+def test_controlled_global_phase_is_rz() -> None:
+    @guppy
+    def with_phase() -> None:
+        c = qubit()
+        h(c)
+        with control(c):
+            global_phase(pi / 3)
+        state_output("s", c)
+        discard(c)
+
+    @guppy
+    def with_rz() -> None:
+        c = qubit()
+        h(c)
+        rz(c, pi / 3)
+        state_output("s", c)
+        discard(c)
+
+    np.testing.assert_allclose(
+        run_ignoring_phase(with_phase, 1), run_ignoring_phase(with_rz, 1), atol=1e-6
+    )
+
+
+def test_doubly_controlled_global_phase_is_cphase() -> None:
+    @guppy
+    def cphase(control: qubit, target: qubit, theta: angle) -> None:
+        rz(control, theta / 2)
+        crz(control, target, theta)
+
+    @guppy
+    def with_phase() -> None:
+        a = qubit()
+        b = qubit()
+        h(a)
+        h(b)
+        with control(a, b):
+            global_phase(pi / 3)
+        state_output("s", a, b)
+        discard(a)
+        discard(b)
+
+    @guppy
+    def with_cphase() -> None:
+        a = qubit()
+        b = qubit()
+        h(a)
+        h(b)
+        cphase(a, b, pi / 3)
+        state_output("s", a, b)
+        discard(a)
+        discard(b)
+
+    np.testing.assert_allclose(
+        run_ignoring_phase(with_phase, 2), run_ignoring_phase(with_cphase, 2), atol=1e-6
+    )
