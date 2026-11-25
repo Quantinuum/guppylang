@@ -37,7 +37,8 @@ class TypePrinter:
     # Count how often the user has picked the same name to stand for different variables
     counter: dict[str, int]
 
-    def __init__(self) -> None:
+    def __init__(self, *, include_function_ids: bool = False) -> None:
+        self.include_function_ids = include_function_ids
         self.used = {}
         self.bound_names = []
         self.existential_names = {}
@@ -110,10 +111,13 @@ class TypePrinter:
 
     @_visit.register
     def _visit_FunctionItemType(self, ty: FunctionDefType, inside_row: bool) -> str:
-        from guppylang_internals.engine import ENGINE
-
-        defn = ENGINE.get_parsed(ty.def_id)
-        return _wrap(signature_to_str(defn.name, ty.sig), inside_row)
+        if self.include_function_ids:
+            name = f"{ty.defn.name}#{ty.def_id.id}"
+            if ty.args:
+                args = ", ".join(self._visit(arg, True) for arg in ty.args)
+                return f"{name}[{args}]"
+            return name
+        return _wrap(signature_to_str(ty.defn.name, ty.sig), inside_row)
 
     @_visit.register(OpaqueType)
     @_visit.register(StructType)

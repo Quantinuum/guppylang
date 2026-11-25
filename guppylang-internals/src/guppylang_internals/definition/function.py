@@ -64,6 +64,7 @@ from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
+from guppylang_internals.tys.printing import TypePrinter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -105,7 +106,8 @@ def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
     for arg in mono_args:
         match arg:
             case TypeArg(ty=ty):
-                arg_strings.append(str(ty))
+                # Distinct closures can share both their name and their signature.
+                arg_strings.append(TypePrinter(include_function_ids=True).visit(ty))
             case ConstArg(const=ConstValue(value=v)):
                 arg_strings.append(str(v))
     return f"{link_name}$" + "&".join(arg_strings)
