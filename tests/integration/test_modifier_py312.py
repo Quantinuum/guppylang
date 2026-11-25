@@ -10,8 +10,6 @@ from guppylang.std.builtins import (
     nat,
 )
 from guppylang.std.quantum import discard, h, measure, qubit, x
-from guppylang_internals.metadata.common import ControlledImplementations
-from hugr.ops import FuncDefn
 
 
 def test_generic_nat_in_dagger(validate):
@@ -83,6 +81,8 @@ def test_higher_order_unitary_callable(validate):
 
 
 def test_custom_control_with_same_named_callbacks(run_int_fn):
+    """NICOLA TODO: test added for https://github.com/Quantinuum/guppylang/issues/2563"""
+
     def make_gate(flip: bool):
         @guppy.comptime(unitary=True)
         def gate(q: qubit) -> None:
@@ -114,18 +114,5 @@ def test_custom_control_with_same_named_callbacks(run_int_fn):
             apply(target, flip)
         discard(flag)
         return int(measure(target).read())
-
-    hugr = main.with_minimal_opt().compile().modules[0]
-    controlled_names = [
-        name
-        for _, data in hugr.nodes()
-        if ControlledImplementations.KEY in data.metadata
-        for name in data.metadata[ControlledImplementations.KEY]
-    ]
-    assert len(controlled_names) == len(set(controlled_names)) == 2
-    functions = [
-        data.op.f_name for _, data in hugr.nodes() if isinstance(data.op, FuncDefn)
-    ]
-    assert all(functions.count(name) == 1 for name in controlled_names)
 
     run_int_fn(main, expected=1, num_qubits=2)

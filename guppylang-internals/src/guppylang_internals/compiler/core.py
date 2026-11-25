@@ -122,7 +122,7 @@ class CompilerContext(ToHugrContext):
 
     # Preferred names of checked functions can coincide when distinct type arguments
     # have the same display name. Track allocations within this HUGR module.
-    _function_name_counts: dict[str, int]
+    function_name_counts: dict[str, int]
 
     # Info computed from callgraph before compilation begins
     effects: Mapping[MonoDefId, frozenset["Effect"]]
@@ -147,7 +147,7 @@ class CompilerContext(ToHugrContext):
         self.module = module
         # Keep the names of declarations and non-generic definitions, including
         # exports, even when a private specialization is emitted first.
-        self._function_name_counts = {
+        self.function_name_counts = {
             defn.link_name: 0
             for defn in ENGINE.checked.values()
             if isinstance(defn, CheckedFunctionDecl)
@@ -168,10 +168,10 @@ class CompilerContext(ToHugrContext):
     def specialization_link_name(self, name: str) -> str:
         """Allocate a module-local name for a monomorphized function definition."""
         candidate = name
-        while candidate in self._function_name_counts:
-            self._function_name_counts[name] += 1
-            candidate = f"{name}#{self._function_name_counts[name]}"
-        self._function_name_counts[candidate] = 0
+        while candidate in self.function_name_counts:
+            self.function_name_counts[name] += 1
+            candidate = f"{name}#{self.function_name_counts[name]}"
+        self.function_name_counts[candidate] = 0
         return candidate
 
     def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
