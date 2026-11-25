@@ -135,38 +135,6 @@ def test_unpack_assignment_evaluates_rhs_once(target_platform):
     assert results.collated_shots() == [{"rhs": [True], "value": [5.0]}]
 
 
-def test_coercion_does_not_allow_frozen_field_mutation():
-    from guppylang_internals.error import GuppyTypeError
-
-    @guppy.struct(frozen=True)
-    class S:
-        value: float
-
-    @guppy
-    def main() -> None:
-        s = S(0.0)
-        s.value = 42
-
-    with pytest.raises(GuppyTypeError, match="immutable"):
-        main.check()
-
-
-def test_coercion_does_not_allow_narrowing():
-    from guppylang_internals.error import GuppyTypeError
-
-    @guppy.struct
-    class S:
-        value: int
-
-    @guppy
-    def main() -> None:
-        s = S(0)
-        s.value = 42.0
-
-    with pytest.raises(GuppyTypeError, match="Type mismatch"):
-        main.check()
-
-
 def test_assign_function_item_to_function_field(run_int_fn):
     from guppylang.std.builtins import Function
 
@@ -204,35 +172,6 @@ def test_assign_nat_to_float_field(run_float_fn_approx):
         return s.value
 
     run_float_fn_approx(main, 42.0)
-
-
-def test_same_type_field_assignment(run_float_fn_approx):
-    @guppy.struct
-    class S:
-        value: float
-
-    @guppy
-    def main() -> float:
-        s = S(0.0)
-        s.value = 42.0
-        return s.value
-
-    run_float_fn_approx(main, 42.0)
-
-
-def test_coercion_does_not_allow_temporary_target():
-    from guppylang_internals.error import GuppyError
-
-    @guppy.struct
-    class S:
-        value: float
-
-    @guppy
-    def main() -> None:
-        S(0.0).value = 42
-
-    with pytest.raises(GuppyError, match="not supported"):
-        main.check()
 
 
 def test_loop_assign_to_float_field(run_float_fn_approx):

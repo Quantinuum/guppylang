@@ -74,8 +74,8 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
 
     @_assign.register
     def _assign_coerced(self, lhs: CoercedAssign, port: Wire) -> None:
-        self.dfg[lhs.rhs_var.place] = port
-        coerced = self.expr_compiler.compile(lhs.value, self.dfg)
+        self.dfg[lhs.tmp_rhs_var.place] = port
+        coerced: Wire = self.expr_compiler.compile(lhs.coerced_value, self.dfg)
         self._assign(lhs.target, coerced)
 
     @_assign.register

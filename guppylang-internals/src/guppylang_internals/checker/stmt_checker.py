@@ -173,16 +173,19 @@ class StmtChecker(AstVisitor[BBStatement]):
         if not isinstance(struct_ty, StructType) or attr not in struct_ty.field_dict:
             raise GuppyTypeError(AttributeNotFoundError(attr_span, struct_ty, attr))
         field = struct_ty.field_dict[attr]
+        # TODO: In the future, we could infer some type args here
         # Coerce a synthetic input rather than the original RHS. This also works
         # for fields nested in an unpacking pattern, where the incoming value is
         # supplied by the assignment compiler rather than an expression node.
-        rhs_var = with_loc(
+        tmp_rhs_var = with_loc(
             rhs, with_type(rhs_ty, PlaceNode(Variable(next(tmp_vars), rhs_ty, rhs)))
         )
         coerced = None
         if field.ty != rhs_ty:
-            coerced = try_coerce_to(rhs_ty, field.ty, rhs_var, self.ctx)
+            coerced = try_coerce_to(rhs_ty, field.ty, tmp_rhs_var, self.ctx)
             if coerced is None:
+                # TODO: Get hold of a span for the RHS and use a regular
+                # `TypeMismatchError` instead (maybe with a custom hint).
                 raise GuppyTypeError(
                     AssignFieldTypeMismatchError(attr_span, rhs_ty, field)
                 )
@@ -202,7 +205,7 @@ class StmtChecker(AstVisitor[BBStatement]):
         target = with_loc(lhs, with_type(field.ty, PlaceNode(place=place)))
         if coerced is not None:
             return with_loc(
-                lhs, with_type(rhs_ty, CoercedAssign(target, coerced, rhs_var))
+                lhs, with_type(rhs_ty, CoercedAssign(target, coerced, tmp_rhs_var))
             )
         return target
 
