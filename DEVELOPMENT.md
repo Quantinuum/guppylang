@@ -33,6 +33,8 @@ To setup the environment manually you will need:
   - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
     or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
+- Watchexec (optional): [watchexec.github.io](https://watchexec.github.io/) for
+  the watch server
 
 Once you have these installed, you can install the required python dependencies and setup pre-commit hooks with:
 
@@ -57,6 +59,17 @@ just export-integration-tests
 ```
 
 Run `just` to see all available commands.
+
+## 👀 Typechecking watch server
+
+You can continuously typecheck the project with
+
+```bash
+just watch
+```
+
+If you aren't using the Nix shell, you will need to install Watchexec (see
+_Manual setup_ above).
 
 ## 🐰 Continuous Benchmarking
 
