@@ -207,7 +207,6 @@ class _Guppy:
                 f.__name__,
                 None,
                 f,
-                link_name=_get_link_name(f),
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
             )

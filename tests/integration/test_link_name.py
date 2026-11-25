@@ -495,7 +495,7 @@ def test_nested_names_skip_reserved_link_names(qualifier):
     def invoke[F: Callable[[], int]](f: F) -> int:
         return f()
 
-    @guppy.comptime
+    @guppy
     @link_name("step")
     def explicit() -> int:
         return 3
