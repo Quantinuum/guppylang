@@ -101,8 +101,7 @@ def check_modified_block(
         globals,
         current_caller=ctx.current_caller,
         modifier_ctx=ctx.modifier_ctx,
-        # We pass the first modifier node for better error messages in the cfg checker
-        first_modifier_node=modified_block.first_modifier_node,
+        modified_block=modified_block,
         modified_block_name_base=ctx.modified_block_name_base,
         modified_block_counter=ctx.modified_block_counter,
     )

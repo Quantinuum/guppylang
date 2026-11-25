@@ -6,7 +6,7 @@ from guppylang.std.builtins import power
 def test(b: bool) -> int:
     x = 3
     with power(2):
-        x += 1
+        x = 1
     if b:
         return x
     return 0

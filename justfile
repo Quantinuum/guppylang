@@ -71,6 +71,7 @@ bench-upload *BENCHER_FLAGS:
            --benchmark-only \
            --benchmark-quiet \
            --benchmark-json="{{NOW}}-pytest-benchmark.json" \
+           -p no:nb_regression \
            -k "compile"
     uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
@@ -87,6 +88,7 @@ bench-compare *BENCHER_FLAGS:
            --benchmark-only \
            --benchmark-quiet \
            --benchmark-json="{{NOW}}-pytest-benchmark.json" \
+           -p no:nb_regression \
            -k "compile"
     uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
@@ -103,3 +105,19 @@ bench-compare *BENCHER_FLAGS:
             --err \
             --quiet \
             {{BENCHER_FLAGS}}
+
+# Continuously typecheck the project on file save. Quit with 'q' and rerun
+# typechecking with 'r'.
+watch: _check-watchexec
+    watchexec \
+      --interactive \
+      --restart \
+      --clear \
+      --timings \
+      --exts py,pyi,toml \
+      -- uv run dmypy run --timeout 900 -- guppylang guppylang-internals
+
+# Checks that watchexec is present.
+@_check-watchexec:
+    command -v watchexec > /dev/null 2>&1 || \
+      { echo "Watchexec is required to run the watch server. See DEVELOPMENT.md." >&2; exit 127; }

@@ -237,8 +237,10 @@ class int:
     @custom_function(NoopCompiler(), effects=())
     def __ceil__(self: int) -> int: ...
 
-    @hugr_op(int_op("idivmod_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
-    def __divmod__(self: int, other: int) -> tuple[int, int]: ...
+    @guppy(daggerable=True)
+    @no_type_check
+    def __divmod__(self: int, other: int) -> tuple[int, int]:
+        return _int_divmod_signed(self, other)
 
     @hugr_op(int_op("ieq"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __eq__(self: int, other: int) -> bool: ...
@@ -253,8 +255,11 @@ class int:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __floor__(self: int) -> int: ...
 
-    @hugr_op(int_op("idiv_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
-    def __floordiv__(self: int, other: int) -> int: ...
+    @guppy(daggerable=True)
+    @no_type_check
+    def __floordiv__(self: int, other: int) -> int:
+        quotient, _ = self.__divmod__(other)
+        return quotient
 
     @hugr_op(int_op("ige_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ge__(self: int, other: int) -> bool: ...
@@ -279,8 +284,11 @@ class int:
     @hugr_op(int_op("ilt_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __lt__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("imod_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
-    def __mod__(self: int, other: int) -> int: ...
+    @guppy(daggerable=True)
+    @no_type_check
+    def __mod__(self: int, other: int) -> int:
+        _, remainder = _int_divmod_signed(self, other)
+        return remainder
 
     @hugr_op(int_op("imul"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __mul__(self: int, other: int) -> int: ...
@@ -418,6 +426,30 @@ class int:
 
     @hugr_op(int_op("ixor"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __xor__(self: int, other: int) -> int: ...
+
+
+@guppy(daggerable=True)
+@no_type_check
+def _int_divmod_signed(dividend: int, divisor: int) -> tuple[int, int]:
+    # Logical shifts extract sign bits as 0 or 1.
+    dividend_sign = dividend >> 63
+    divisor_sign = divisor >> 63
+    # Wrapping two's-complement negation also handles the magnitude of MIN_INT.
+    magnitude = (dividend ^ -dividend_sign) + dividend_sign
+    modulus = (divisor ^ -divisor_sign) + divisor_sign
+    quotient, remainder = _int_divmod_unsigned(magnitude, modulus)
+    different_signs = dividend_sign ^ divisor_sign
+    # Round down only for opposite signs and a nonzero remainder.
+    adjustment = different_signs * ((remainder | -remainder) >> 63)
+    quotient = quotient * (1 - 2 * different_signs) - adjustment
+    remainder = remainder + adjustment * (modulus - 2 * remainder)
+    # The remainder has the divisor's sign.
+    return quotient, remainder * (1 - 2 * divisor_sign)
+
+
+@hugr_op(int_op("idivmod_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
+def _int_divmod_unsigned(dividend: int, divisor: int) -> tuple[int, int]:
+    """Raw operation: both arguments' bit patterns are interpreted as unsigned."""
 
 
 @extend_type(float_type_def)

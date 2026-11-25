@@ -1,7 +1,6 @@
 import pytest
 
-from tests.error.util import run_error_test, collect_error_test_cases
-
+from tests.error.util import collect_error_test_cases, run_error_test
 
 files = collect_error_test_cases(
     "errors_on_usage",
@@ -11,16 +10,10 @@ files = collect_error_test_cases(
 
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
-        "for_new_var.py",
-        "for_target.py",
-        "for_target_type_change.py",
-        "for_type_change.py",
-        "var_in_modifier1.py",
-        "var_in_modifier2.py",
-        "var_in_modifier3.py",
-        "var_in_modifier4.py",
-        "var_undefined_before_modifier1.py",
-        "var_undefined_before_modifier2.py",
+    "for_new_var.py",
+    "for_target.py",
+    "for_target_type_change.py",
+    "for_type_change.py",
 ]
 files_with_experimental_flag = [
     (file, any(case in file for case in tests_that_require_experimental_features))
