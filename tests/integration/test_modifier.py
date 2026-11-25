@@ -308,13 +308,23 @@ def test_power_nested_repeats_block(n, m, enabled, run_statevector_fn):
     )
 
 
-def test_power_daggered(run_statevector_fn):
+def test_power_repeats_custom_daggered(run_statevector_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            rx(q, angle(-0.25))
+
     @guppy
     def main() -> array[qubit, 1]:
         q = qubit()
         rx(q, angle(0.5))
         with power(2), dagger:
-            rx(q, angle(0.25))
+            custom_gate(q)
         return array(q)
 
     run_statevector_fn(main, expected=[1, 0], num_qubits=1)
