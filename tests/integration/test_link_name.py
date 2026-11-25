@@ -486,3 +486,71 @@ def test_comptime_same_name_different_scopes(qualifier):
     prefix = f"{qualifier}.<locals>"
     assert f"{prefix}.first_scope.<locals>.same_name" in names
     assert f"{prefix}.second_scope.<locals>.same_name" in names
+
+
+def test_nested_names_skip_reserved_link_names(qualifier):
+    from collections.abc import Callable
+
+    @guppy
+    def invoke[F: Callable[[], int]](f: F) -> int:
+        return f()
+
+    @guppy.comptime
+    @link_name("step")
+    def explicit() -> int:
+        return 3
+
+    @guppy.declare
+    @link_name("step#1")
+    def external() -> int: ...
+
+    @guppy
+    def main() -> int:
+        def step() -> int:
+            return 1
+
+        first = step
+
+        def step() -> int:
+            return 2
+
+        return invoke(first) + invoke(step) + explicit() + external()
+
+    package = main.with_minimal_opt().compile()
+    assert _func_names(package) == {
+        f"{qualifier}.<locals>.main",
+        f"{qualifier}.<locals>.invoke$def step() -> int",
+        f"{qualifier}.<locals>.invoke$def step() -> int#1",
+        "step",
+        "step#1",
+        "step#2",
+        "step#3",
+    }
+    explicit.compile_function()
+    assert (
+        main.with_minimal_opt().compile().modules[0].to_str()
+        == package.modules[0].to_str()
+    )
+
+
+def test_duplicate_explicit_link_names():
+    from guppylang_internals.error import GuppyError
+
+    @guppy
+    @link_name("shared")
+    def first() -> int:
+        return 1
+
+    @guppy
+    @link_name("shared")
+    def second() -> int:
+        return 2
+
+    @guppy
+    def main() -> int:
+        return first() + second()
+
+    with pytest.raises(
+        GuppyError, match="Two function definitions require the link name `shared`"
+    ):
+        main.with_minimal_opt().compile()

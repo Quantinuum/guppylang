@@ -1,3 +1,5 @@
+from hugr.ops import FuncDefn
+
 from guppylang.decorator import guppy
 
 from guppylang.std.array import array
@@ -115,4 +117,10 @@ def test_custom_control_with_same_named_callbacks(run_int_fn):
         discard(flag)
         return int(measure(target).read())
 
+    h = main.with_minimal_opt().compile().modules[0]
+    names = [d.op.f_name for d in h.values() if isinstance(d.op, FuncDefn)]
+    assert len(names) == len(set(names))
+    # Compare the graph, including which body and modifier target each name denotes.
+    make_gate(True).compile_function()
+    assert main.with_minimal_opt().compile().modules[0].to_str() == h.to_str()
     run_int_fn(main, expected=1, num_qubits=2)

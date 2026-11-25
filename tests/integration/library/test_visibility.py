@@ -135,10 +135,7 @@ def test_ensure_nested_members_private(validate, qualifier):
     assert _func_names_and_visibilities(compiled_library) == {
         (f"{qualifier}.<locals>.main", "Public"),
         (f"{qualifier}.<locals>.func_1", "Private"),
-        # These collide in names in the HUGR, but for private functions the name has no
-        # semantic impact. They are always private since we cannot reference them
-        # outside their defining function, so they cannot be included in the public API
-        # of a library.
         ("nested_func", "Private"),
+        ("nested_func#1", "Private"),
         (f"{qualifier}.<locals>.MyStruct.member", "Private"),
     }

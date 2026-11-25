@@ -216,3 +216,10 @@ class UserProvidedLinkName:
 
     def __post_init__(self, link_name: str | None) -> None:
         object.__setattr__(self, "_user_set_link_name", link_name)
+
+
+@dataclass(frozen=True)
+class DuplicateFunctionLinkNameError(Fatal):
+    title: ClassVar[str] = "Duplicate function link name"
+    message: ClassVar[str] = "Two function definitions require the link name `{name}`."
+    name: str
