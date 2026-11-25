@@ -18,7 +18,10 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     RawCustomFunctionDef,
 )
-from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.declaration import (
+    RawFunctionDecl,
+    RawRequiredFunction,
+)
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.pytket_circuits import (
     RawLoadPytketDef,
@@ -276,6 +279,7 @@ def is_overload_static(raw_defn: Definition) -> bool:
             RawFunctionDef()
             | RawCustomFunctionDef()
             | RawFunctionDecl()
+            | RawRequiredFunction()
             | RawTracedFunctionDef()
         ):
             return isinstance(raw_defn.python_func, staticmethod)

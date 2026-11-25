@@ -76,6 +76,14 @@ class StructBaseHint(Help):
 
 
 @dataclass(frozen=True)
+class StructRequiredHint(Help):
+    message: ClassVar[str] = (
+        "Structs can't require methods, only protocols require methods. "
+        "Maybe you meant `@guppy.declare`"
+    )
+
+
+@dataclass(frozen=True)
 class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 
@@ -121,15 +129,28 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
-                # Ensure that all function definitions are Guppy functions
+                # Ensure that function definitions are valid
                 case _, ast.FunctionDef(name=name) as node:
                     v = getattr(self.python_class, name)
+                    # Function definitions must be Guppy functions
                     if not isinstance(v, GuppyDefinition):
                         raise GuppyError(
                             NonGuppyMethodError(
                                 node, self.name, name, "struct", "@guppy"
                             )
                         )
+                    # Structs can't require functions
+                    from guppylang_internals.definition.declaration import (
+                        RawRequiredFunction,
+                    )
+
+                    if isinstance(v.wrapped, RawRequiredFunction):
+                        err = UnexpectedError(
+                            node, "required function", unexpected_in="a struct"
+                        )
+                        err.add_sub_diagnostic(StructRequiredHint(None))
+                        raise GuppyError(err)
+                    # Prevent duplicate names
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
