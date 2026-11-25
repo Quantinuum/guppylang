@@ -239,18 +239,95 @@ def test_control_subscript_nested(validate):
     validate(main.compile())
 
 
-def test_power_simple(validate, use_experimental_features):
+def test_power_simple(validate):
     @guppy
     def bar(n: nat) -> None:
         with power(n):
             pass
 
-    # Tket passes reject power modifiers, so do not export this HUGR for CI
-    # normalization and don't run default optimization passes.
-    validate(
-        bar.with_minimal_opt().compile_function(),
-        export=False,
+    validate(bar.compile_function())
+
+
+def test_power_reassign_outer_before_use(validate):
+    @guppy
+    def main(x: int, b: bool, q: qubit) -> int:
+        z = 0
+        with power(2):
+            with control(q):
+                if b:
+                    x = 1
+                    y = x + z
+        x = 3
+        return x
+
+    validate(main.compile_function())
+
+
+def test_power_combined_modifiers(validate):
+    @guppy
+    def main(q: qubit, ctrl: qubit, n: nat, m: nat) -> None:
+        with power(n), control(ctrl), dagger, power(m):
+            rx(q, angle(0.25))
+
+        with control(ctrl):
+            a = angle(0.25)
+            with power(n):
+                with dagger:
+                    with power(m):
+                        rx(q, a)
+
+    validate(main.compile_function())
+
+
+@pytest.mark.parametrize(
+    ("n", "m", "enabled"),
+    [(0, 2, 1), (2, 0, 1), (2, 2, 1), (2, 3, 1), (2, 3, 0)],
+)
+def test_power_nested_repeats_block(n, m, enabled, run_statevector_fn):
+    @guppy
+    def main(outer: int, inner: int, enabled: int) -> array[qubit, 2]:
+        q = qubit()
+        ctrl = qubit()
+        if enabled != 0:
+            x(ctrl)
+        with power(nat(outer)):
+            with control(ctrl):
+                with power(nat(inner)):
+                    rx(q, angle(0.25))
+                    rz(q, angle(0.125))
+        if enabled != 0:
+            for _ in range(outer * inner):
+                rz(q, angle(-0.125))
+                rx(q, angle(-0.25))
+        return array(q, ctrl)
+
+    # Four or six blocks leave a superposition; reversing the gate order and
+    # angles returns |0>. With control disabled, both operations are skipped.
+    run_statevector_fn(
+        main, expected=[1 - enabled, enabled, 0, 0], args=[n, m, enabled], num_qubits=2
     )
+
+
+def test_power_repeats_custom_daggered(run_statevector_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            rx(q, angle(-0.25))
+
+    @guppy
+    def main() -> array[qubit, 1]:
+        q = qubit()
+        rx(q, angle(0.5))
+        with power(2), dagger:
+            custom_gate(q)
+        return array(q)
+
+    run_statevector_fn(main, expected=[1, 0], num_qubits=1)
 
 
 def test_call_in_modifier(validate):
@@ -1132,7 +1209,7 @@ def test_double_dagger_cancellation_1(validate):
     validate(bar.compile_function())
 
 
-def test_double_dagger_cancellation_2(validate, use_experimental_features):
+def test_double_dagger_cancellation_2(validate):
     @guppy(controllable=True)
     def not_dagger_func(q: qubit) -> None:
         pass
@@ -1150,10 +1227,7 @@ def test_double_dagger_cancellation_2(validate, use_experimental_features):
         discard(q)
         discard(c2)
 
-    main.check()
-    # Tket passes reject power modifiers, so do not export this HUGR for CI
-    # normalization.
-    # validate(main.compile())
+    validate(main.compile())
 
 
 def test_combined_with_items_nested(validate):
@@ -1723,6 +1797,19 @@ def test_custom_modifier_accepts_docstring(validate) -> None:
         discard(q)
 
     validate(main.compile())
+
+
+def test_signed_division_in_dagger(validate) -> None:
+    @guppy
+    def main(x: int, y: int) -> int:
+        q = qubit()
+        with dagger:
+            z = x // y
+            rz(q, angle(float(z % 4)))
+        discard(q)
+        return 1
+
+    validate(main.compile_function())
 
 
 def test_control_index_not_checked_with_inner_dagger(validate):

@@ -4,7 +4,7 @@
   packages = [
     pkgs.just
     pkgs.graphviz
-
+    pkgs.watchexec
   ]
   ++ lib.optionals pkgs.stdenv.isDarwin (
     [ pkgs.zlib pkgs.xz ]

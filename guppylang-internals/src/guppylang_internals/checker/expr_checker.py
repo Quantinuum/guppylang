@@ -566,7 +566,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             ), subst
 
         elif callee := ENGINE.get_instance_func(func_ty, "__call__"):
-            return callee.check_call(node.args, ty, node, self.ctx)
+            args = node.args if callee.is_static else [node.func, *node.args]
+            return callee.check_call(args, ty, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, func_ty))
 
@@ -1355,7 +1356,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             ), return_ty
 
         elif f := ENGINE.get_instance_func(ty, "__call__"):
-            return f.synthesize_call(node.args, node, self.ctx)
+            args = node.args if f.is_static else [node.func, *node.args]
+            return f.synthesize_call(args, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, ty))
 

@@ -1,0 +1,15 @@
+Error: Signature in implementation doesn't match protocol (at $FILE:23:10)
+   | 
+21 | def main() -> None:
+22 |     q = qubit()
+23 |     apply(Consume(), q)
+   |           ^^^^^^^^^ Type signature of method `__call__` differs from that
+   |                     required by protocol
+
+Note: Protocol `Callable[[qubit], None]` requires method `__call__` to have type
+signature:
+    `(Consume, qubit) -> None`
+but got actual type signature:
+    `(Consume, qubit @owned) -> None`
+
+Guppy compilation failed due to 1 previous error

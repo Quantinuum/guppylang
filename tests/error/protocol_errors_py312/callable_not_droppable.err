@@ -1,0 +1,12 @@
+Error: Expected a droppable type (at $FILE:16:13)
+   | 
+14 | @guppy
+15 | def apply(f: Callable[[qubit @ owned], int], q: qubit @ owned) -> int:
+16 |     return f(q)
+   |              ^ Expected a droppable type, got type `qubit` which is not
+   |                implicitly droppable
+
+Note: Error occurred while checking the instantiation `Callable[[qubit], int] :=
+Ignore`
+
+Guppy compilation failed due to 1 previous error

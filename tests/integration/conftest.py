@@ -2,6 +2,7 @@ from hugr import Hugr
 from hugr.package import Package, PackagePointer
 
 from pathlib import Path
+import numpy as np
 import pytest
 from typing import Any, Literal, cast
 from typing import assert_never
@@ -17,7 +18,13 @@ from guppylang.std.num import nat
 # tests against non-default platforms, without also rerunning validation-only
 # integration tests.
 _EXECUTION_FIXTURES = frozenset(
-    {"run_int_fn", "run_nat_fn", "run_float_fn_approx", "run_float_fn_approx_per_shot"}
+    {
+        "run_int_fn",
+        "run_nat_fn",
+        "run_float_fn_approx",
+        "run_float_fn_approx_per_shot",
+        "run_statevector_fn",
+    }
 )
 
 
@@ -173,6 +180,48 @@ def run_int_fn(target_platform: Platform):
 def run_nat_fn(target_platform: Platform):
     """Emulate an unsigned integer function using the Guppy emulator."""
     return _emulate_fn(ty="nat", default_platform=target_platform)
+
+
+@pytest.fixture
+def run_statevector_fn(target_platform: Platform):
+    """Check the state of a returned qubit array, up to global phase.
+
+    Amplitudes follow the returned array's qubit order, most significant first.
+    The state is captured before discarding the qubits, without measurement.
+    """
+    from guppylang.decorator import guppy
+    from guppylang.std.debug import state_output
+    from guppylang.std.quantum import discard_array
+
+    def run(
+        f: GuppyDefinition,
+        expected: list[complex],
+        num_qubits: int,
+        args: list[Any] | None = None,
+        platform: Platform | None = None,
+    ) -> None:
+        args = args or []
+
+        @guppy.comptime
+        def entry() -> None:
+            qs = f(*args)
+            state_output("_test_state", qs)
+            discard_array(qs)
+
+        results = (
+            entry.emulator(num_qubits, platform=platform or target_platform)
+            .statevector_sim()
+            .with_shots(1)
+            .run()
+        )
+        actual = results.partial_state_dicts()[0]["_test_state"].as_single_state()
+        expected_state = np.asarray(expected, dtype=complex)
+        assert actual.shape == expected_state.shape
+        overlap = np.vdot(expected_state, actual)
+        phase = overlap / abs(overlap) if abs(overlap) > 0 else 1
+        np.testing.assert_allclose(actual, phase * expected_state, rtol=0, atol=1e-8)
+
+    return run
 
 
 @pytest.fixture

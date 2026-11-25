@@ -27,10 +27,7 @@ from guppylang_internals.checker.errors.generic import (
 from guppylang_internals.checker.errors.type_errors import WrongNumberOfArgsError
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.experimental import (
-    check_lists_enabled,
-    check_power_modifier_enabled,
-)
+from guppylang_internals.experimental import check_lists_enabled
 from guppylang_internals.nodes import (
     ComptimeExpr,
     Control,
@@ -437,7 +434,6 @@ class CFGBuilder(AstVisitor[BB | None]):
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))
                 modifier = Control(e, e.args)
             case ast.Call(func=ast.Name(id="power")):
-                check_power_modifier_enabled(e.func)
                 if len(e.args) == 0:
                     span = Span(to_span(e.func).end, to_span(e).end)
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))

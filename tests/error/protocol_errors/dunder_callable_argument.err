@@ -1,0 +1,15 @@
+Error: Signature in implementation doesn't match protocol (at $FILE:20:17)
+   | 
+18 | @guppy
+19 | def main() -> bool:
+20 |     return apply(BadCallable())
+   |                  ^^^^^^^^^^^^^ Type signature of method `__call__` differs from that
+   |                                required by protocol
+
+Note: Protocol `Callable[[int], bool]` requires method `__call__` to have type
+signature:
+    `(BadCallable, int) -> bool`
+but got actual type signature:
+    `(BadCallable, bool) -> bool`
+
+Guppy compilation failed due to 1 previous error

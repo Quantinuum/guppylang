@@ -301,3 +301,19 @@ def test_staticmethod_protocol_self(validate):
         hasmyproto(t)
 
     validate(main.compile())
+
+
+def test_call_dunder(validate):
+    @guppy.struct(frozen=True)
+    class Add:
+        @guppy
+        @staticmethod
+        def __call__(x: int) -> int:
+            return x + 1
+
+    @guppy
+    def main() -> int:
+        f = Add()
+        return f(41)
+
+    validate(main.compile_function())
