@@ -43,7 +43,7 @@ guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
 # hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
-tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket/tket-py", rev = "311c32751e29ea92fe7e88c0b420a8b2c6f3d975" }
+# tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "cdb47dd" }
 
 [build-system]
 requires = ["hatchling"]
