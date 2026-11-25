@@ -545,6 +545,9 @@ class CompilationEngine:
                 DEF_STORE.register_def(method_def, DEF_STORE.frames[id])
                 DEF_STORE.register_type_member(defn.id, method_def.name, method_def.id)
 
+        if isinstance(defn, CheckedStructDef):
+            defn.post_validate()
+
         return defn
 
     def register_generic_use(self, defn: CheckableGenericDef, type_args: Inst) -> None:
