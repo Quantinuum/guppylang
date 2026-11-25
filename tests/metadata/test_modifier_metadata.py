@@ -62,7 +62,7 @@ def test_unitary_metadata_control_only():
 
 
 # Tests nested modifiers metadata
-def test_unitary_metadata_power_dagger_control(use_experimental_features):
+def test_unitary_metadata_power_dagger_control():
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -87,7 +87,7 @@ def test_unitary_metadata_power_dagger_control(use_experimental_features):
     )
 
 
-def test_unitary_metadata_dagger_power_control(use_experimental_features):
+def test_unitary_metadata_dagger_power_control():
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -112,7 +112,7 @@ def test_unitary_metadata_dagger_power_control(use_experimental_features):
     )
 
 
-def test_unitary_metadata_control_dagger_power(use_experimental_features):
+def test_unitary_metadata_control_dagger_power():
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -137,7 +137,7 @@ def test_unitary_metadata_control_dagger_power(use_experimental_features):
     )
 
 
-def test_unitary_metadata_power_control_dagger(use_experimental_features):
+def test_unitary_metadata_power_control_dagger():
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -162,7 +162,7 @@ def test_unitary_metadata_power_control_dagger(use_experimental_features):
     )
 
 
-def test_unitary_metadata_dagger_control_power(use_experimental_features):
+def test_unitary_metadata_dagger_control_power():
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -187,7 +187,7 @@ def test_unitary_metadata_dagger_control_power(use_experimental_features):
     )
 
 
-def test_unitary_metadata_control_power_dagger(use_experimental_features):
+def test_unitary_metadata_control_power_dagger():
     @guppy
     def main() -> None:
         c1 = qubit()

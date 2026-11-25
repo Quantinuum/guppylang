@@ -19,6 +19,14 @@ if TYPE_CHECKING:
     from guppylang_internals.cfg.cfg import BaseCFG
 
 
+@dataclass(frozen=True)
+class ModifierAssignment:
+    """An assignment and the modifier block that contains it."""
+
+    assignment: AstNode
+    modifier: ast.expr
+
+
 # VId is a type variable for ids of entities which we may wish to track during program
 # analysis (generally ids for program variables or parts thereof)
 @dataclass
@@ -33,14 +41,16 @@ class VariableStats[VId: Hashable]:
     used: dict[VId, AstNode] = field(default_factory=dict)
 
     # Variables that are used after being assigned in a modifier block.
-    # The value is the first usage after the modifier block and the node where the
-    # variable is assigned in the modifier block.
-    badly_used_after_modifier_block: dict[VId, tuple[AstNode, AstNode]] = field(
-        default_factory=dict
+    # The value is the first usage after the modifier block and the assignment
+    # together with its modifier location.
+    badly_used_after_modifier_block: dict[VId, tuple[AstNode, ModifierAssignment]] = (
+        field(default_factory=dict)
     )
 
     # Variables whose last assignment in this BB happened inside a modifier block.
-    assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
+    assigned_in_modifier_block: dict[VId, ModifierAssignment] = field(
+        default_factory=dict
+    )
 
 
 BBStatement = (
@@ -255,12 +265,15 @@ class VariableVisitor(ast.NodeVisitor):
             bb_stat = bb.compute_variable_stats()
             # We update the `assigned_in_modifier_block` field of the stats for
             # each BB.
-            for var, ast_node in (
-                # We union the two dicts in this order to prioritize variables assigned
-                # in the outer modifier block
-                bb_stat.assigned_in_modifier_block | bb_stat.assigned
-            ).items():
-                self.stats.assigned_in_modifier_block[var] = ast_node
+            # Prioritize direct assignments over assignments in nested modifiers,
+            # preserving the original modifier location for nested assignments.
+            self.stats.assigned_in_modifier_block |= (
+                bb_stat.assigned_in_modifier_block
+                | {
+                    var: ModifierAssignment(assignment, node.first_modifier_node)
+                    for var, assignment in bb_stat.assigned.items()
+                }
+            )
             stats[bb] = bb_stat
 
         live = LivenessAnalysis(stats).run(node.cfg.bbs)

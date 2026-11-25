@@ -1,15 +1,19 @@
 Error: Variable assigned in modifier block (at $FILE:11:15)
    | 
- 9 |         x += 1
+ 9 |         x = 1
 10 |     if b:
 11 |         return x
    |                ^ `x` cannot be used...
 
-Note:
+Notes:
    | 
  8 |     with power(2):
- 9 |         x += 1
-   |         ------ ... since it was assigned in a modifier block
+ 9 |         x = 1
+   |         ----- ... since it was assigned in a modifier block
+
+ 7 |     x = 3
+ 8 |     with power(2):
+   |          -------- modifier is used here
 
 Help: Variables assigned inside a modifier block are not available outside the
 block
