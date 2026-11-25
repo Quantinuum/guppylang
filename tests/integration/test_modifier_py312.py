@@ -81,7 +81,7 @@ def test_higher_order_unitary_callable(validate):
 
 
 def test_custom_control_with_same_named_callbacks(run_int_fn):
-    """NICOLA TODO: test added for https://github.com/Quantinuum/guppylang/issues/2563"""
+    """Checking modifier behavior with gate factory see: https://github.com/Quantinuum/guppylang/issues/2563"""
 
     def make_gate(flip: bool):
         @guppy.comptime(unitary=True)
