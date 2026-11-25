@@ -32,10 +32,35 @@ from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg
 from guppylang_internals.tys.builtin import get_element_type, is_array_type
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
+from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import NumericType, Type
 
 #: Maximum length of a tag in the `output` function.
 TAG_MAX_LEN = 200
+
+
+class IntOutputChecker(DefaultCallChecker):
+    """Let nat values reach the unsigned output overload instead of coercing them."""
+
+    def _reject_nat(self, args: list[ast.expr]) -> None:
+        if len(args) == 2:
+            _, value_ty = ExprSynthesizer(self.ctx).synthesize(args[1])
+            if (
+                isinstance(value_ty, NumericType)
+                and value_ty.kind == NumericType.Kind.Nat
+            ):
+                expected_ty = self.func.ty.inputs[1].ty
+                raise GuppyTypeError(TypeMismatchError(args[1], expected_ty, value_ty))
+
+    @override
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        self._reject_nat(args)
+        return super().synthesize(args)
+
+    @override
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        self._reject_nat(args)
+        return super().check(args, ty)
 
 
 class ArrayOutputChecker(DefaultCallChecker):

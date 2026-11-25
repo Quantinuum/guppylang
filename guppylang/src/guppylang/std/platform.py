@@ -15,6 +15,7 @@ from guppylang_internals.std._internal.checker import (
 from guppylang_internals.std._internal.compiler.platform import (
     ArrayOutputChecker,
     ArrayOutputCompiler,
+    IntOutputChecker,
     MeasurementOutputChecker,
     OutputCompiler,
 )
@@ -34,7 +35,9 @@ n = guppy.nat_var("n")
 
 
 @custom_function(
-    OutputCompiler("result_int", with_int_width=True), effects=[Effect.OUTPUT]
+    OutputCompiler("result_int", with_int_width=True),
+    effects=[Effect.OUTPUT],
+    checker=IntOutputChecker(),
 )
 def _output_int(tag: str @ comptime, value: int) -> None: ...
 
