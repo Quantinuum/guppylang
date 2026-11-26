@@ -106,8 +106,7 @@ bench-compare *BENCHER_FLAGS:
             --quiet \
             {{BENCHER_FLAGS}}
 
-# Continuously typecheck the project on file save. Quit with 'q' and rerun
-# typechecking with 'r'.
+# Continuously typecheck the project on file save. Quit with 'q' and rerun typechecking with 'r'.
 watch: _check-watchexec
     watchexec \
       --interactive \
