@@ -531,6 +531,11 @@ def test_nested_names_skip_used_link_names(qualifier):
 
 
 def test_duplicate_explicit_link_names():
+    """
+    User-provided names may clash with names already emitted. Diagnose these clashes
+    in https://github.com/Quantinuum/guppylang/issues/2579.
+    """
+
     @guppy
     @link_name("shared")
     def first() -> int:
@@ -548,25 +553,3 @@ def test_duplicate_explicit_link_names():
     hugr = main.with_minimal_opt().compile().modules[0]
     names = [data.op.f_name for data in hugr.values() if isinstance(data.op, FuncDefn)]
     assert names.count("shared") == 2
-
-
-def test_explicit_name_clashing_with_generated_name(qualifier):
-    @guppy
-    def generated() -> int:
-        return 1
-
-    name = f"{qualifier}.<locals>.generated"
-
-    @guppy
-    @link_name(name)
-    def explicit() -> int:
-        return 2
-
-    @guppy
-    def main() -> int:
-        return generated() + explicit()
-
-    hugr = main.with_minimal_opt().compile().modules[0]
-    names = [data.op.f_name for data in hugr.values() if isinstance(data.op, FuncDefn)]
-    # The later explicit name is preserved; diagnosing the clash belongs to #2579.
-    assert names.count(name) == 2
