@@ -46,7 +46,6 @@ from guppylang_internals.nodes import (
     PlaceNode,
 )
 from guppylang_internals.std._internal.compiler.array import check_empty_array_elem_ty
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -312,16 +311,6 @@ class ArrayIndexChecker(CustomCallChecker):
             self.func.ty, args, ty, self.node, self.ctx, self.func
         )
 
-        assert isinstance(type_args[0], TypeArg)
-        if type_args[0].ty.copyable:
-            # Preserving legacy behaviour for linear types - these compile to
-            # borrow/return, which may panic, but in order to support optimization,
-            # we do not totally order such accesses, see https://github.com/Quantinuum/guppylang/issues/2122.
-            # However for copyable types we compile a separate unwrap in the panic
-            # chain; this is not included in the effects for __getitem__ (as these
-            # cannot depend upon type bound), so record that here.
-            register_effects(self.ctx, [Effect.PANIC])
-
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
@@ -337,11 +326,6 @@ class ArrayIndexChecker(CustomCallChecker):
         args, ty, type_args = synthesize_call(
             self.func.ty, args, self.node, self.ctx, self.func
         )
-
-        assert isinstance(type_args[0], TypeArg)
-        if type_args[0].ty.copyable:
-            # As self.check(...)
-            register_effects(self.ctx, [Effect.PANIC])
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
