@@ -6,4 +6,7 @@ Error: Global phase in classical context (at $FILE:12:8)
    |         ^^^^^^^^^^^^^^^^^^^^ `global_phase` can only be used in a `control` block or in a
    |                              function with quantum inputs or outputs
 
+Note: Restricting global phases to quantum contexts avoids hidden quantum
+effects in classical functions.
+
 Guppy compilation failed due to 1 previous error

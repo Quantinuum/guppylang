@@ -52,7 +52,7 @@ from guppylang_internals.tracing.unpacking import (
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
-from guppylang_internals.tys.qubit import is_quantum_signature
+from guppylang_internals.tys.qubit import is_carrying_qubits
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -155,7 +155,7 @@ def trace_function(
         node,
         func_def,
         current_caller=mono_id,
-        quantum_function=is_quantum_signature([inp.ty for inp in ty.inputs], ty.output),
+        quantum_function=is_carrying_qubits([inp.ty for inp in ty.inputs], ty.output),
     )
 
     with set_tracing_state(state):

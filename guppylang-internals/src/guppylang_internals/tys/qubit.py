@@ -132,7 +132,7 @@ def _find_qubit(ty: Type, finder: QubitFinder) -> bool:
         return False
 
 
-def is_quantum_signature(input_tys: Iterable[Type], output_ty: Type) -> bool | None:
+def is_carrying_qubits(input_tys: Iterable[Type], output_ty: Type) -> bool | None:
     """Checks if a function with the given input and output types is quantum, i.e.
     if any of its inputs or its output carries qubits.
 

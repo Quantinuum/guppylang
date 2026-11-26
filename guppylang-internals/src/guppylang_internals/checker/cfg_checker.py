@@ -37,7 +37,7 @@ from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import ModifiedBlock
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.qubit import is_quantum_signature
+from guppylang_internals.tys.qubit import is_carrying_qubits
 from guppylang_internals.tys.ty import (
     FunctionDefType,
     InputFlags,
@@ -113,7 +113,9 @@ def check_cfg(
     `modified_block`: the enclosing modifier block, if any, used to check captured
     variable reassignments and report errors.
 
-    `parent_quantum_scope`: the `Context.quantum_scope` enclosing this modifier block.
+    `parent_quantum_scope`: the `Context.quantum_scope` of the code enclosing this
+    modifier block. It is `None` when the enclosing function's signature has no qubits
+    but has a generic parameter that could be instantiated with qubits.
     """
 
     if modified_block_counter is None:
@@ -125,10 +127,13 @@ def check_cfg(
     # them. A modifier block in a classical function only counts if it is controlled,
     # since the modifier pass skips classical functions. `None` means it depends on how
     # generic parameters are instantiated.
-    is_controlled_block = bool(modified_block and modifier_ctx.control_sizes)
-    signature_quantum = is_quantum_signature([v.ty for v in inputs], return_ty)
-    scope_parts = (parent_quantum_scope, is_controlled_block, signature_quantum)
-    quantum_scope = True if any(scope_parts) else None if None in scope_parts else False
+    quantum_scope: bool | None
+    if parent_quantum_scope or (modified_block and modifier_ctx.control_sizes):
+        quantum_scope = True
+    else:
+        quantum_scope = is_carrying_qubits([v.ty for v in inputs], return_ty)
+        if not quantum_scope and parent_quantum_scope is None:
+            quantum_scope = None
 
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}

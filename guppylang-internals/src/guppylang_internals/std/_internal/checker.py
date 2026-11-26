@@ -599,13 +599,22 @@ class GlobalPhaseChecker(DefaultCallChecker):
         )
         name: str
 
+        @dataclass(frozen=True)
+        class HiddenEffectNote(Note):
+            message: ClassVar[str] = (
+                "Restricting global phases to quantum contexts avoids hidden quantum "
+                "effects in classical functions."
+            )
+
     def _check_scope(self) -> None:
         if self.ctx.quantum_scope is None:
             # Whether we are in a quantum scope depends on generic parameters, so wait
             # for the monomorphic check
             raise RequiresMonomorphizationError
         if not self.ctx.quantum_scope:
-            raise GuppyError(self.ClassicalScopeError(self.node, self.func.name))
+            err = self.ClassicalScopeError(self.node, self.func.name)
+            err.add_sub_diagnostic(self.ClassicalScopeError.HiddenEffectNote(None))
+            raise GuppyError(err)
 
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
