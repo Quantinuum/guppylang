@@ -2224,11 +2224,12 @@ def python_value_to_guppy(
             hints = (
                 type_hint.element_types
                 if isinstance(type_hint, TupleType)
+                and len(elts) == len(type_hint.element_types)
                 else len(elts) * [None]
             )
             tys: list[Type] = []
             vals: list[Any] = []
-            for elt, hint in zip(elts, hints, strict=False):
+            for elt, hint in zip(elts, hints, strict=True):
                 tyval = python_value_to_guppy(elt, node, hint)
                 if tyval is None:
                     err = UnsupportedPythonValueError(node, type(elt))

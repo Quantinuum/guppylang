@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:12:6)
+   | 
+10 | def main() -> None:
+11 |     s = S(0)
+12 |     s.value = 42.0
+   |       ^^^^^ Cannot assign expression of type `float` to field `value` of
+   |             type `int`
+
+Guppy compilation failed due to 1 previous error
