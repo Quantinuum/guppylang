@@ -95,7 +95,7 @@ def default_func_link_name(
 
 
 def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
-    """Returns a unique link name for the monomorphized version of a function.
+    """Returns link name for the monomorphized version of a function.
 
     If the function is not generic, then the original link name is preserved.
     """
@@ -206,6 +206,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            user_provided_link_name=self._user_set_link_name is not None,
             is_static=is_static,
             decorator_unitary_flags=(
                 self.unitary_flags
@@ -237,6 +238,9 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
+
+    # Retain the origin of the name through checking and monomorphization.
+    user_provided_link_name: bool = field(default=False, kw_only=True)
 
     description: str = field(default="function", init=False)
 
@@ -277,6 +281,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             type_args,
             cfg,
+            user_provided_link_name=self.user_provided_link_name,
             is_static=self.is_static,
             decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
@@ -343,8 +348,11 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         `CompiledFunctionDef.compile_inner()`.
         """
         hugr_ty = self.ty.to_hugr_poly(ctx)
+        link_name = ctx.function_link_name(
+            self.link_name, user_provided=self.user_provided_link_name
+        )
         func_def = module.module_root_builder().define_function(
-            self.link_name,
+            link_name,
             hugr_ty.body.input,
             hugr_ty.body.output,
             hugr_ty.params,
@@ -363,10 +371,11 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.docstring,
-            self.link_name,
+            link_name,
             self.mono_args,
             self.cfg,
             FunctionBuilder(func_def),
+            user_provided_link_name=self.user_provided_link_name,
             is_static=self.is_static,
             decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,

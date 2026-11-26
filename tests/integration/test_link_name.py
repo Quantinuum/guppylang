@@ -488,7 +488,7 @@ def test_comptime_same_name_different_scopes(qualifier):
     assert f"{prefix}.second_scope.<locals>.same_name" in names
 
 
-def test_nested_names_skip_reserved_link_names(qualifier):
+def test_nested_names_skip_used_link_names(qualifier):
     from collections.abc import Callable
 
     @guppy
@@ -500,12 +500,10 @@ def test_nested_names_skip_reserved_link_names(qualifier):
     def explicit() -> int:
         return 3
 
-    @guppy.declare
-    @link_name("step#1")
-    def external() -> int: ...
-
     @guppy
     def main() -> int:
+        result = explicit()
+
         def step() -> int:
             return 1
 
@@ -514,7 +512,7 @@ def test_nested_names_skip_reserved_link_names(qualifier):
         def step() -> int:
             return 2
 
-        return invoke(first) + invoke(step) + explicit() + external()
+        return invoke(first) + invoke(step) + result
 
     package = main.with_minimal_opt().compile()
     assert _func_names(package) == {
@@ -524,7 +522,6 @@ def test_nested_names_skip_reserved_link_names(qualifier):
         "step",
         "step#1",
         "step#2",
-        "step#3",
     }
     explicit.compile_function()
     assert (
@@ -534,8 +531,6 @@ def test_nested_names_skip_reserved_link_names(qualifier):
 
 
 def test_duplicate_explicit_link_names():
-    from guppylang_internals.error import GuppyError
-
     @guppy
     @link_name("shared")
     def first() -> int:
@@ -550,7 +545,28 @@ def test_duplicate_explicit_link_names():
     def main() -> int:
         return first() + second()
 
-    with pytest.raises(
-        GuppyError, match="Two function definitions require the link name `shared`"
-    ):
-        main.with_minimal_opt().compile()
+    hugr = main.with_minimal_opt().compile().modules[0]
+    names = [data.op.f_name for data in hugr.values() if isinstance(data.op, FuncDefn)]
+    assert names.count("shared") == 2
+
+
+def test_explicit_name_clashing_with_generated_name(qualifier):
+    @guppy
+    def generated() -> int:
+        return 1
+
+    name = f"{qualifier}.<locals>.generated"
+
+    @guppy
+    @link_name(name)
+    def explicit() -> int:
+        return 2
+
+    @guppy
+    def main() -> int:
+        return generated() + explicit()
+
+    hugr = main.with_minimal_opt().compile().modules[0]
+    names = [data.op.f_name for data in hugr.values() if isinstance(data.op, FuncDefn)]
+    # The later explicit name is preserved; diagnosing the clash belongs to #2579.
+    assert names.count(name) == 2

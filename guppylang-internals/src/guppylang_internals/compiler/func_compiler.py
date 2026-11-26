@@ -63,8 +63,9 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
+    link_name = ctx.function_link_name(func.name)
     func_builder = dfg.builder.define_function(
-        func.name, closure_ty.input, closure_ty.output
+        link_name, closure_ty.input, closure_ty.output
     )
 
     if debug_mode_enabled():
@@ -106,9 +107,7 @@ def compile_local_func_def(
             func,
             func.ty,
             None,
-            # Even though global, this function will be private to the built hugr,
-            # so the hugr name does not really matter.
-            func.name,
+            link_name,
             mono_args,
             func.cfg,
             func_builder,

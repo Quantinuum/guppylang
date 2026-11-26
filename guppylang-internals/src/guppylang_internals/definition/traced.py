@@ -169,7 +169,9 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
         """
         func_type = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            monomorphized_link_name(default_func_link_name(self), self.inst),
+            ctx.function_link_name(
+                monomorphized_link_name(default_func_link_name(self), self.inst),
+            ),
             func_type.body.input,
             func_type.body.output,
             func_type.params,
