@@ -31,7 +31,7 @@ def test_global_phase_quantum_output(validate) -> None:
 
 def test_global_phase_in_dagger_block(validate) -> None:
     @guppy
-    def foo() -> None:
+    def foo(q: qubit) -> None:
         with dagger:
             global_phase(pi)
 
@@ -44,6 +44,20 @@ def test_global_phase_comptime(validate) -> None:
         global_phase(pi)
 
     validate(foo.compile_function())
+
+
+def test_global_phase_generic_instantiated_with_qubit(validate) -> None:
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy
+    def phase(q: T) -> None:
+        global_phase(pi)
+
+    @guppy
+    def main(q: qubit) -> None:
+        phase(q)
+
+    validate(main.compile_function())
 
 
 # Test global phase results in the expected state when controlled.

@@ -35,8 +35,9 @@ class TracingState:
     # maximum effects that the function is allowed to perform
     current_caller: MonoDefId | None
 
-    #: Whether the currently traced function has quantum inputs or outputs
-    quantum_function: bool = False
+    #: Whether the currently traced function has quantum inputs or outputs (see
+    #: `Context.quantum_scope`)
+    quantum_function: bool | None = False
 
     #: Set of all allocated undroppable GuppyObjects where the `used` flag is not set,
     #: indexed by their id. This is used to detect linearity violations.

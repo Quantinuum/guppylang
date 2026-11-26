@@ -98,6 +98,7 @@ def check_cfg(
     modified_block: ModifiedBlock | None = None,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,
+    parent_quantum_scope: bool | None = False,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
@@ -111,6 +112,8 @@ def check_cfg(
 
     `modified_block`: the enclosing modifier block, if any, used to check captured
     variable reassignments and report errors.
+
+    `parent_quantum_scope`: the `Context.quantum_scope` enclosing this modifier block.
     """
 
     if modified_block_counter is None:
@@ -118,10 +121,14 @@ def check_cfg(
     if modified_block_name_base is None:
         modified_block_name_base = func_name
 
-    # Modifier blocks and functions with quantum inputs or outputs are quantum scopes
-    quantum_scope = modified_block is not None or is_quantum_signature(
-        [v.ty for v in inputs], return_ty
-    )
+    # Functions with quantum inputs or outputs are quantum scopes, as is code nested in
+    # them. A modifier block in a classical function only counts if it is controlled,
+    # since the modifier pass skips classical functions. `None` means it depends on how
+    # generic parameters are instantiated.
+    is_controlled_block = bool(modified_block and modifier_ctx.control_sizes)
+    signature_quantum = is_quantum_signature([v.ty for v in inputs], return_ty)
+    scope_parts = (parent_quantum_scope, is_controlled_block, signature_quantum)
+    quantum_scope = True if any(scope_parts) else None if None in scope_parts else False
 
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
@@ -348,7 +355,7 @@ def check_bb(
     modifier_ctx: ModifierContext,
     modified_block: ModifiedBlock | None,
     captured_live_names: set[str],
-    quantum_scope: bool,
+    quantum_scope: bool | None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 

@@ -36,6 +36,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
 )
 from guppylang_internals.nodes import (
     AbortExpr,
@@ -601,20 +602,24 @@ class GlobalPhaseChecker(DefaultCallChecker):
     """Call checker for the `global_phase` function.
 
     Modifiers are only applied to quantum code, so a global phase would be lost if it
-    were applied in a classical function. Thus, we only allow it inside modifier blocks
-    or in functions with quantum inputs or outputs.
+    were applied in a classical function. Thus, we only allow it inside `control`
+    blocks or in functions with quantum inputs or outputs.
     """
 
     @dataclass(frozen=True)
     class ClassicalScopeError(Error):
         title: ClassVar[str] = "Global phase in classical context"
         span_label: ClassVar[str] = (
-            "`{name}` can only be used in a modifier block or in a function with "
+            "`{name}` can only be used in a `control` block or in a function with "
             "quantum inputs or outputs"
         )
         name: str
 
     def _check_scope(self) -> None:
+        if self.ctx.quantum_scope is None:
+            # Whether we are in a quantum scope depends on generic parameters, so wait
+            # for the monomorphic check
+            raise RequiresMonomorphizationError
         if not self.ctx.quantum_scope:
             raise GuppyError(self.ClassicalScopeError(self.node, self.func.name))
 

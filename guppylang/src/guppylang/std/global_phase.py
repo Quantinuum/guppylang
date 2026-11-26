@@ -25,6 +25,6 @@ def global_phase(angle: angle) -> None:
     """Apply a global phase to the circuit.
 
     This has no observable effect on its own, but becomes observable when the
-    enclosing operation is controlled. Can only be used inside a modifier block or in
+    enclosing operation is controlled. Can only be used inside a `control` block or in
     a function with quantum inputs or outputs.
     """

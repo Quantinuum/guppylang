@@ -47,10 +47,21 @@ def is_qubit_ty(ty: Type) -> bool:
 
 
 class QubitFinder(Visitor):
-    """Type visitor that checks if a type contains the qubit type."""
+    """Type visitor that checks if a type contains the qubit type.
+
+    If `opaque_callables` is set, function types are treated as opaque values and their
+    signatures are not searched. This matches the modifier pass in tket, which only
+    treats values that actually carry qubits as quantum data.
+    """
 
     class FoundFlag(Exception):
         pass
+
+    def __init__(self, opaque_callables: bool = False) -> None:
+        self.opaque_callables = opaque_callables
+        #: Whether a generic type variable was found that could be instantiated with
+        #: a type containing qubits
+        self.found_linear_type_var = False
 
     def visit(self, ty: Any) -> bool:
         node: Type | Argument
@@ -66,7 +77,14 @@ class QubitFinder(Visitor):
         # Keep this match exhaustive over types and arguments. New variants must
         # explicitly decide how their contained types are searched.
         match node:
-            case BoundTypeVar() | ExistentialTypeVar() | NumericType() | NoneType():
+            case BoundTypeVar(copyable=copyable, droppable=droppable):
+                # Types containing qubits are neither copyable nor droppable, so only
+                # such variables may be instantiated with qubits.
+                if not copyable and not droppable:
+                    self.found_linear_type_var = True
+            case ExistentialTypeVar() | NumericType() | NoneType():
+                pass
+            case FunctionType() | FunctionDefType() if self.opaque_callables:
                 pass
             case FunctionType(inputs=inputs, output=output):
                 for inp in inputs:
@@ -102,7 +120,10 @@ class QubitFinder(Visitor):
 
 def contain_qubit_ty(ty: Type) -> bool:
     """Checks if the given type contains the qubit type."""
-    finder = QubitFinder()
+    return _find_qubit(ty, QubitFinder())
+
+
+def _find_qubit(ty: Type, finder: QubitFinder) -> bool:
     try:
         ty.visit(finder)
     except QubitFinder.FoundFlag:
@@ -111,7 +132,14 @@ def contain_qubit_ty(ty: Type) -> bool:
         return False
 
 
-def is_quantum_signature(input_tys: Iterable[Type], output_ty: Type) -> bool:
+def is_quantum_signature(input_tys: Iterable[Type], output_ty: Type) -> bool | None:
     """Checks if a function with the given input and output types is quantum, i.e.
-    if any of its inputs or its output contains a qubit."""
-    return contain_qubit_ty(output_ty) or any(contain_qubit_ty(t) for t in input_tys)
+    if any of its inputs or its output carries qubits.
+
+    Returns `None` if this can't be decided yet because the signature contains generic
+    type variables that could be instantiated with qubits.
+    """
+    finder = QubitFinder(opaque_callables=True)
+    if any(_find_qubit(ty, finder) for ty in [*input_tys, output_ty]):
+        return True
+    return None if finder.found_linear_type_var else False

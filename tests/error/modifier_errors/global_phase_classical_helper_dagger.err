@@ -1,0 +1,9 @@
+Error: Global phase in classical context (at $FILE:12:8)
+   | 
+10 | def helper() -> None:
+11 |     with dagger:
+12 |         global_phase(pi / 3)
+   |         ^^^^^^^^^^^^^^^^^^^^ `global_phase` can only be used in a `control` block or in a
+   |                              function with quantum inputs or outputs
+
+Guppy compilation failed due to 1 previous error
