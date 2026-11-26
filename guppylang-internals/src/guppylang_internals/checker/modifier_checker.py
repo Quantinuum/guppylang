@@ -87,11 +87,6 @@ def check_modified_block(
     inputs = [_body_input(x, place) for x, (place, _) in captured.items()]
     inputs = non_copyable_front_others_back(inputs)
     globals = ctx.globals
-    assert ctx.modified_block_counter is not None
-    block_name = (
-        f"{ctx.modified_block_name_base}."
-        f"__WithBlock__{next(ctx.modified_block_counter)}"
-    )
     checked_cfg = check_cfg(
         cfg,
         inputs,
@@ -102,8 +97,6 @@ def check_modified_block(
         current_caller=ctx.current_caller,
         modifier_ctx=ctx.modifier_ctx,
         modified_block=modified_block,
-        modified_block_name_base=ctx.modified_block_name_base,
-        modified_block_counter=ctx.modified_block_counter,
     )
     if ctx.modifier_ctx.control_sizes:
         # Array manipulation code for controls, generated in `compile_modified_block`,
@@ -116,7 +109,6 @@ def check_modified_block(
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(
-        block_name,
         checked_cfg,
         func_ty,
         captured,

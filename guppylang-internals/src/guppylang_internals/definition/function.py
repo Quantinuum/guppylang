@@ -267,7 +267,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.ty,
             type_args,
             globals,
-            mono_link_name,
             def_id=self.id,
             decorator_unitary_flags=self.decorator_unitary_flags,
         )

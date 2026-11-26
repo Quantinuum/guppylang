@@ -44,9 +44,7 @@ def _func_names_excluding_main_and_withblocks(
     package: Package, qualifier: str
 ) -> set[str]:
     func_names = _func_names_excluding_main(package, qualifier)
-    with_block_pattern = re.compile(
-        rf"{re.escape(qualifier)}\.<locals>\.main\.__WithBlock__\d+"
-    )
+    with_block_pattern = re.compile(r"__WithBlock__(?:#\d+)?")
     with_block_names = {
         name for name in func_names if with_block_pattern.fullmatch(name)
     }

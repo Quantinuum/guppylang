@@ -142,7 +142,6 @@ def check_global_func_def(
     generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
-    link_name: str,
     def_id: DefId,
     decorator_unitary_flags: UnitaryFlags,
 ) -> CheckedCFG[Place]:
@@ -177,7 +176,6 @@ def check_global_func_def(
         generic_args,
         func_def.name,
         globals,
-        modified_block_name_base=link_name,
         current_caller=current_caller,
     )
 

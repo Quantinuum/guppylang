@@ -22,7 +22,7 @@ def _check_block_metadata(hugr_module: Hugr, unitary_values: list[int]) -> list:
 
     blocks = []
     for _, data in hugr_module.nodes():
-        if isinstance(data.op, FuncDefn) and ".__WithBlock__" in data.op.f_name:
+        if isinstance(data.op, FuncDefn) and data.op.f_name.startswith("__WithBlock__"):
             blocks.append(data.metadata)
 
     assert len(blocks) == len(unitary_values)

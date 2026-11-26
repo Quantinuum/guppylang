@@ -922,7 +922,6 @@ class ModifiedBlock(ast.With):
 
 
 class CheckedModifiedBlock(ast.With):
-    name: str
     cfg: "CheckedCFG[Place]"
 
     #: The type of the body of With block.
@@ -934,7 +933,6 @@ class CheckedModifiedBlock(ast.With):
 
     def __init__(
         self,
-        name: str,
         cfg: "CheckedCFG[Place]",
         ty: FunctionType,
         captured: Mapping[str, tuple["Place", AstNode]],
@@ -943,7 +941,6 @@ class CheckedModifiedBlock(ast.With):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.name = name
         self.cfg = cfg
         self.ty = ty
         self.captured = captured
@@ -966,7 +963,7 @@ class CheckedModifiedBlock(ast.With):
     __reduce_ex__ = object.__reduce_ex__
 
     def __str__(self) -> str:
-        return self.name
+        return "__WithBlock__"
 
     def has_dagger(self) -> bool:
         return self.modifiers.has_dagger()

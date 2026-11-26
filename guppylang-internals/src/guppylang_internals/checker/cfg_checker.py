@@ -6,7 +6,6 @@ Operates on CFGs produced by the `CFGBuilder`. Produces a `CheckedCFG` consistin
 
 import ast
 import collections
-import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -95,8 +94,6 @@ def check_cfg(
     current_caller: MonoDefId,
     modifier_ctx: ModifierContext = NO_CALL_MODIFIERS,
     modified_block: ModifiedBlock | None = None,
-    modified_block_name_base: str | None = None,
-    modified_block_counter: Iterator[int] | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
@@ -111,11 +108,6 @@ def check_cfg(
     `modified_block`: the enclosing modifier block, if any, used to check captured
     variable reassignments and report errors.
     """
-
-    if modified_block_counter is None:
-        modified_block_counter = itertools.count()
-    if modified_block_name_base is None:
-        modified_block_name_base = func_name
 
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
@@ -132,8 +124,6 @@ def check_cfg(
         return_ty,
         generic_args,
         globals,
-        modified_block_name_base,
-        modified_block_counter,
         current_caller=current_caller,
         modifier_ctx=modifier_ctx,
         modified_block=modified_block,
@@ -170,8 +160,6 @@ def check_cfg(
                 return_ty,
                 generic_args,
                 globals,
-                modified_block_name_base,
-                modified_block_counter,
                 current_caller=current_caller,
                 modifier_ctx=modifier_ctx,
                 modified_block=modified_block,
@@ -334,8 +322,6 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    modified_block_name_base: str,
-    modified_block_counter: Iterator[int],
     current_caller: MonoDefId,
     modifier_ctx: ModifierContext,
     modified_block: ModifiedBlock | None,
@@ -368,8 +354,6 @@ def check_bb(
         globals,
         Locals({v.name: v for v in inputs}),
         generic_args,
-        modified_block_name_base=modified_block_name_base,
-        modified_block_counter=modified_block_counter,
         current_caller=current_caller,
         modifier_ctx=modifier_ctx,
     )
