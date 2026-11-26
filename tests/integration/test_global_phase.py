@@ -127,6 +127,28 @@ def test_controlled_global_phase_is_rz(run_statevector_fn) -> None:
     run_statevector_fn(main, expected=circ.get_statevector(), num_qubits=1)
 
 
+def test_controlled_daggered_global_phase(run_statevector_fn) -> None:
+    @guppy(controllable=True)
+    def foo(q: qubit) -> None:
+        with dagger:
+            global_phase(pi / 3)
+
+    @guppy
+    def main() -> array[qubit, 2]:
+        c = qubit()
+        t = qubit()
+        h(c)
+        with control(c):
+            foo(t)
+        return array(c, t)
+
+    circ = Circuit(2)
+    circ.H(0)
+    circ.Rz(-1 / 3, 0)
+
+    run_statevector_fn(main, expected=circ.get_statevector(), num_qubits=2)
+
+
 def test_doubly_controlled_global_phase_is_cphase(run_statevector_fn) -> None:
     @guppy
     def main() -> array[qubit, 2]:
