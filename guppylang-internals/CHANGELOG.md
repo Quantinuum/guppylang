@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.2...guppylang-internals-v1.2.3) (2026-11-26)
+
+
+### Bug Fixes
+
+* Use the unwrapped function for source-file lookup (#2585)([529da1b](https://github.com/Quantinuum/guppylang/commit/529da1bc2b87b9f4d8502ec20320ef8b6cfb9a03))
+* Add order edges for panic effects to all array accesses (#2584)([5865766](https://github.com/Quantinuum/guppylang/commit/58657660c9c4345a9d71c0ab244d1f88500bbe0a))
+* Coerce values assigned to struct fields (#2580)([a314f19](https://github.com/Quantinuum/guppylang/commit/a314f19d891ae65eccd7cf1adc5996a8c3d113df))
+
 ## [1.2.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.1...guppylang-internals-v1.2.2) (2026-11-19)
 
 
