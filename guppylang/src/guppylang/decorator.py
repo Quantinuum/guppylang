@@ -28,7 +28,10 @@ from guppylang_internals.definition.alias import RawTypeAliasDef
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.const import RawConstDef
 from guppylang_internals.definition.custom import RawCustomFunctionDef
-from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.declaration import (
+    RawFunctionDecl,
+    RawRequiredFunction,
+)
 from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
 from guppylang_internals.definition.function import (
@@ -88,6 +91,7 @@ AnyRawFunctionDef = (
     RawFunctionDef,
     RawCustomFunctionDef,
     RawFunctionDecl,
+    RawRequiredFunction,
     RawPytketDef,
     RawLoadPytketDef,
     OverloadedFunctionDef,
@@ -439,7 +443,7 @@ class _Guppy:
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
             _add_generic_metadata(f, parsed.metadata)
-            defn = RawFunctionDecl(
+            defn = RawRequiredFunction(
                 DefId.fresh(),
                 f.__name__,
                 None,

@@ -1,0 +1,11 @@
+Error: Unexpected declared function (at $FILE:7:4)
+  | 
+5 | class Foo:
+6 |     @guppy.declare
+7 |     def foo(self: "Foo") -> None: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected declared function in a protocol
+
+Help: Protocols can't declare methods, only structs declare methods. Maybe you
+meant `@guppy.require`
+
+Guppy compilation failed due to 1 previous error

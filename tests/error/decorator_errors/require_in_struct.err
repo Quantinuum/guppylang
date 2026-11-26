@@ -1,0 +1,11 @@
+Error: Unexpected required function (at $FILE:7:4)
+  | 
+5 | class Foo:
+6 |     @guppy.require
+7 |     def foo(self: "Foo") -> None: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected required function in a struct
+
+Help: Structs can't require methods, only protocols require methods. Maybe you
+meant `@guppy.declare`
+
+Guppy compilation failed due to 1 previous error

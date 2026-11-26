@@ -59,8 +59,9 @@ from guppylang_internals.tys.ty import Type, UnitaryFlags
 @dataclass(frozen=True)
 class BodyNotEmptyError(Error):
     title: ClassVar[str] = "Unexpected function body"
-    span_label: ClassVar[str] = "Body of declared function `{name}` must be empty"
+    span_label: ClassVar[str] = "Body of {fun_kind} function `{name}` must be empty"
     name: str
+    fun_kind: str
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,68 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
         #  declarations. For now though, we must allow them to avoid breakage...
 
         if not has_empty_body(func_ast):
-            raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
+            raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name, "declared"))
+        return ParsedFunctionDecl(
+            id=self.id,
+            name=self.name,
+            defined_at=func_ast,
+            ty=ty,
+            docstring=docstring,
+            link_name=link_name,
+            is_static=is_static,
+            metadata=self.metadata,
+        )
+
+
+@dataclass(frozen=True)
+class RawRequiredFunction(ParsableDef, UserProvidedLinkName):
+    """A required function in a protocol.
+
+    The raw declaration stores exactly what the user has written (i.e. the AST), without
+    any additional checking or parsing.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was defined.
+        python_func: The Python function object corresponding to the declaration.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
+    """
+
+    python_func: PyFunc
+
+    description: str = field(default="function", init=False)
+
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
+
+    @override
+    def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
+        """Parses and checks the user-provided signature of the function."""
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, docstring = parse_py_func(py_func, sources)
+        ty = check_signature(
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
+        )
+        link_name = self._user_set_link_name or default_func_link_name(self)
+
+        # TODO: For the guppylang 1.0 break, we should consider disallowing generic
+        #  declarations. For now though, we must allow them to avoid breakage...
+
+        if not has_empty_body(func_ast):
+            raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name, "required"))
         return ParsedFunctionDecl(
             id=self.id,
             name=self.name,

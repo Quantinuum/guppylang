@@ -59,6 +59,14 @@ class GenericComptimeUnsupported(Error):
 
 
 @dataclass(frozen=True)
+class ProtocolDeclaredHint(Help):
+    message: ClassVar[str] = (
+        "Protocols can't declare methods, only structs declare methods. "
+        "Maybe you meant `@guppy.require`"
+    )
+
+
+@dataclass(frozen=True)
 class RawProtocolDef(ProtocolDef, ParsableDef):
     """A raw protocol definition that has not been parsed yet."""
 
@@ -131,14 +139,29 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
 
                     py_func = getattr(self.python_class, name, None)
 
+                    # Function definitions must be guppy functions
                     if not isinstance(py_func, GuppyDefinition):
                         raise GuppyError(
                             NonGuppyMethodError(
                                 node, self.name, name, "protocol", "@guppy.require"
                             )
                         )
+
+                    # Protocols can't declare functions
+                    from guppylang_internals.definition.declaration import (
+                        RawFunctionDecl,
+                    )
+
+                    if isinstance(py_func.wrapped, RawFunctionDecl):
+                        err = UnexpectedError(
+                            node, "declared function", unexpected_in="a protocol"
+                        )
+                        err.add_sub_diagnostic(ProtocolDeclaredHint(None))
+                        raise GuppyError(err)
+
                     assert isinstance(py_func, GuppyDefinition)
                     func_defs[name] = py_func.id
+
                 # Fields are not allowed in protocols.
                 case _, ast.AnnAssign(target=ast.Name(_)) as node:
                     err = UnsupportedError(
