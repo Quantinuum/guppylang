@@ -1,15 +1,15 @@
 import itertools
 from abc import ABC
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from hugr import Hugr, Node, Wire
+from hugr import Hugr, Wire
 from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
-from hugr.ops import FuncDecl, FuncDefn, Module
+from hugr.ops import Module
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
@@ -28,22 +28,17 @@ from guppylang_internals.definition.common import (
     CompiledDef,
     DefId,
     Definition,
-    DuplicateFunctionLinkNameError,
     RawDef,
-    UserProvidedLinkName,
 )
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.definition.value import (
-    CompiledCallableDef,
-    CompiledHugrNodeDef,
-)
+from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.engine import (
     DEF_STORE,
     ENGINE,
     CompilationStage,
     MonoDefId,
 )
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.metadata.common import (
     add_custom_implementations,
     add_num_control_qubits,
@@ -71,6 +66,7 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
+    from guppylang_internals.definition.function import CompiledFunctionDef
     from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
@@ -86,6 +82,10 @@ class GlobalConstId:
     @staticmethod
     def fresh(base_name: str) -> "GlobalConstId":
         return GlobalConstId(next(GlobalConstId._fresh_ids), base_name)
+
+    @property
+    def name(self) -> str:
+        return f"{self.base_name}.{self.id}"
 
 
 #: Unique identifier for global Hugr constants and monomorphized functions
@@ -167,101 +167,78 @@ class CompilerContext(ToHugrContext):
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
 
-            by_kind = self.custom_uses_by_unmodified_callee.get((def_id, mono_args), {})
-            # Emit in a fixed order even if analysis discovered the uses in a
-            # different order. Metadata names are filled in once all bodies exist.
-            for kind in CustomModifierKind:
-                for use in by_kind.get(kind, ()):
-                    self.build_compiled_def(*use.custom_def)
+            if (def_id, mono_args) in self.custom_uses_by_unmodified_callee:
+                daggered, controlled, ctrl_daggered = (
+                    self._compile_custom_modifier_uses((def_id, mono_args))
+                )
+                from guppylang_internals.definition.function import (
+                    CompiledFunctionDef,
+                )
+
+                assert isinstance(defn, CompiledFunctionDef)
+                add_custom_implementations(
+                    self.module.hugr[defn.hugr_node].metadata,
+                    daggered=daggered,
+                    controlled=controlled,
+                    ctrl_daggered=ctrl_daggered,
+                )
 
         return self.compiled[def_id, mono_args]
 
-    def finalize_function_names(self) -> None:
-        """Assign module-local names in emission order, then resolve modifier links."""
-        from guppylang_internals.definition.function import CompiledFunctionDef
+    def _compile_custom_modifier_uses(
+        self, unmodified_callee: MonoDefId
+    ) -> tuple[str | None, list[str] | None, list[str] | None]:
+        """Compiles the custom uses for an unmodified-callee monomorphization."""
+        by_kind = self.custom_uses_by_unmodified_callee[unmodified_callee]
 
-        hugr = self.module.hugr
-        fixed = set()
-        for defn in self.compiled.values():
-            raw = DEF_STORE.raw_defs.get(defn.id)
-            if isinstance(defn, CompiledHugrNodeDef) and (
-                defn.id in self.exported_defs
-                or (
-                    isinstance(raw, UserProvidedLinkName)
-                    and raw._user_set_link_name is not None
-                )
-            ):
-                fixed.add(defn.hugr_node)
+        daggered: str | None = None
+        if daggered_uses := by_kind.get(CustomModifierKind.DAGGERED):
+            # A daggered definition is not generic, so there must be exactly one
+            # concrete definition (the original one).
+            assert len(daggered_uses) == 1
+            daggered = self._compile_custom_modifier_use(daggered_uses[0]).link_name
 
-        # Reserve all fixed names first: a declaration or export may follow a
-        # private definition that would otherwise take its name.
-        declared_names: set[str] = set()
-        counters: dict[str, int] = {}
-        functions: dict[Node, FuncDefn] = {}
-        for node in hugr.children(hugr.module_root):
-            op = hugr[node].op
-            if isinstance(op, FuncDecl):
-                declared_names.add(op.f_name)
-            elif isinstance(op, FuncDefn):
-                functions[node] = op
-                if node in fixed or op.visibility != "Private":
-                    if op.f_name in counters:
-                        raise GuppyError(
-                            DuplicateFunctionLinkNameError(None, op.f_name)
-                        )
-                    fixed.add(node)
-                    counters[op.f_name] = 0
-        counters.update(dict.fromkeys(declared_names, 0))
+        controlled_uses = by_kind.get(CustomModifierKind.CONTROLLED)
+        controlled = (
+            self._compile_controlled_uses(controlled_uses)
+            if controlled_uses is not None
+            else None
+        )
+        ctrl_daggered_uses = by_kind.get(CustomModifierKind.CTRL_DAGGERED)
+        ctrl_daggered = (
+            self._compile_controlled_uses(ctrl_daggered_uses)
+            if ctrl_daggered_uses is not None
+            else None
+        )
 
-        for node, op in functions.items():
-            if node in fixed:
-                continue
-            base = op.f_name
-            name = base
-            while name in counters:
-                counters[base] += 1
-                name = f"{base}#{counters[base]}"
-            counters[name] = 0
-            op.f_name = name
+        return daggered, controlled, ctrl_daggered
 
-        for key, defn in self.compiled.items():
-            if isinstance(defn, CompiledFunctionDef):
-                name = functions[defn.hugr_node].f_name
-                if defn.link_name != name:
-                    self.compiled[key] = replace(defn, link_name=name)
-
-        self._add_custom_modifier_metadata()
-
-    def _add_custom_modifier_metadata(self) -> None:
-        from guppylang_internals.definition.function import CompiledFunctionDef
-
-        hugr = self.module.hugr
-        for owner, by_kind in self.custom_uses_by_unmodified_callee.items():
-            # Checking may discover uses whose caller is never emitted.
-            if owner not in self.compiled:
-                continue
-            parent = self.compiled[owner]
-            assert isinstance(parent, CompiledFunctionDef)
-            names: dict[CustomModifierKind, list[str]] = {}
-            for kind, uses in by_kind.items():
-                names[kind] = []
-                for use in uses:
-                    impl = self.compiled[use.custom_def]
-                    assert isinstance(impl, CompiledFunctionDef)
-                    if kind.takes_controls:
-                        assert use.control_count is not None
-                        add_num_control_qubits(
-                            hugr[impl.hugr_node].metadata, use.control_count
-                        )
-                    names[kind].append(impl.link_name)
-            daggered = names.get(CustomModifierKind.DAGGERED, [])
-            assert len(daggered) <= 1
-            add_custom_implementations(
-                hugr[parent.hugr_node].metadata,
-                daggered=daggered[0] if daggered else None,
-                controlled=names.get(CustomModifierKind.CONTROLLED),
-                ctrl_daggered=names.get(CustomModifierKind.CTRL_DAGGERED),
+    def _compile_controlled_uses(
+        self, custom_uses: list[ConcreteCustomUse]
+    ) -> list[str]:
+        """Compiles control-parameterized uses in ascending control-count order."""
+        custom_link_names: list[str] = []
+        for custom_use in sorted(custom_uses, key=_control_count):
+            control_count = _control_count(custom_use)
+            compiled_custom = self._compile_custom_modifier_use(custom_use)
+            add_num_control_qubits(
+                self.module.hugr[compiled_custom.hugr_node].metadata,
+                control_count,
             )
+            custom_link_names.append(compiled_custom.link_name)
+        return custom_link_names
+
+    def _compile_custom_modifier_use(
+        self, custom_use: ConcreteCustomUse
+    ) -> "CompiledFunctionDef":
+        """Compiles one custom definition already prepared during checking."""
+        from guppylang_internals.definition.function import CompiledFunctionDef
+
+        assert custom_use.custom_def in ENGINE.checked
+        custom_id, custom_args = custom_use.custom_def
+        compiled = self.build_compiled_def(custom_id, custom_args)
+        assert isinstance(compiled, CompiledFunctionDef)
+        return compiled
 
     def iterate_worklist(self) -> None:
         while self.worklist:
@@ -309,7 +286,7 @@ class CompilerContext(ToHugrContext):
         if (const_id, mono_args) in self.global_funcs:
             return self.global_funcs[const_id, mono_args], True
         func = self.module.module_root_builder().define_function(
-            name=const_id.base_name,
+            name=const_id.name,
             input_types=func_ty.body.input,
             output_types=func_ty.body.output,
             type_params=func_ty.params,
@@ -414,10 +391,13 @@ def _group_custom_uses_by_unmodified_callee_and_kind(
         assert custom_def == custom_use.custom_def
         by_kind = grouped.setdefault(custom_use.unmodified_callee, {})
         by_kind.setdefault(custom_use.kind, []).append(custom_use)
-    for by_kind in grouped.values():
-        for uses in by_kind.values():
-            uses.sort(key=lambda use: use.control_count or 0)
     return grouped
+
+
+def _control_count(custom_use: ConcreteCustomUse) -> int:
+    """Returns the concrete control count for a control-parameterized custom use."""
+    assert custom_use.control_count is not None
+    return custom_use.control_count
 
 
 def return_var(n: int) -> str:

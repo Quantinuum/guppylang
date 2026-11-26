@@ -888,7 +888,6 @@ class CompilationEngine:
             check_entry_point_non_generic(self.get_parsed(def_id))
             requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
-        ctx.finalize_function_names()
         self.compiled = ctx.compiled
 
         # Add debug info about the module to the root node

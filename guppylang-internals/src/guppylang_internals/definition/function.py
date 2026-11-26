@@ -95,7 +95,7 @@ def default_func_link_name(
 
 
 def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
-    """Returns the preferred link name for a monomorphized function.
+    """Returns a unique link name for the monomorphized version of a function.
 
     If the function is not generic, then the original link name is preserved.
     """
