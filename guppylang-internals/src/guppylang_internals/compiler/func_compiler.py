@@ -29,7 +29,9 @@ def compile_global_func_def(
     builder.set_outputs(*cfg)
     actual_effects: frozenset[EffectType] = frozenset(builder.effects)
     predicted_effects: frozenset[EffectType] = frozenset(
-        extract_effect_types(ctx.effects[(func.id, func.mono_args)])
+        extract_effect_types(
+            ctx.effects[(func.id, func.mono_args)], include_subsumed=True
+        )
     )
     if not predicted_effects.issuperset(actual_effects):
         surplus = actual_effects - predicted_effects

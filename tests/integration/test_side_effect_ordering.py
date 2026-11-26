@@ -639,8 +639,8 @@ def test_qarray_put_take_exit(validate):
     for n in [get2, put1]:
         check_order(hugr, [get1, exit1, n, exit2, put2])
 
-    assert set(hugr.outgoing_order_links(exit1)) == {exit2, get2, put1}
-    assert set(hugr.incoming_order_links(exit2)) == {get2, put1, exit1}
+    assert set(hugr.outgoing_order_links(exit1)) == {get2, put1}
+    assert set(hugr.incoming_order_links(exit2)) == {get2, put1}
 
     pkg = foo.compile_function()
     validate(pkg)
