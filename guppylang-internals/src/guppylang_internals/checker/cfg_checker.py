@@ -37,6 +37,7 @@ from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import ModifiedBlock
 from guppylang_internals.tys.arg import Argument
+from guppylang_internals.tys.qubit import is_carrying_qubits
 from guppylang_internals.tys.ty import (
     FunctionDefType,
     InputFlags,
@@ -97,6 +98,7 @@ def check_cfg(
     modified_block: ModifiedBlock | None = None,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,
+    parent_quantum_scope: bool | None = False,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
@@ -110,12 +112,28 @@ def check_cfg(
 
     `modified_block`: the enclosing modifier block, if any, used to check captured
     variable reassignments and report errors.
+
+    `parent_quantum_scope`: the `Context.quantum_scope` of the code enclosing this
+    modifier block. It is `None` when the enclosing function's signature has no qubits
+    but has a generic parameter that could be instantiated with qubits.
     """
 
     if modified_block_counter is None:
         modified_block_counter = itertools.count()
     if modified_block_name_base is None:
         modified_block_name_base = func_name
+
+    # Functions with quantum inputs or outputs are quantum scopes, as is code nested in
+    # them. A modifier block in a classical function only counts if it is controlled,
+    # since the modifier pass skips classical functions. `None` means it depends on how
+    # generic parameters are instantiated.
+    quantum_scope: bool | None
+    if parent_quantum_scope or (modified_block and modifier_ctx.control_sizes):
+        quantum_scope = True
+    else:
+        quantum_scope = is_carrying_qubits([v.ty for v in inputs], return_ty)
+        if not quantum_scope and parent_quantum_scope is None:
+            quantum_scope = None
 
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
@@ -138,6 +156,7 @@ def check_cfg(
         modifier_ctx=modifier_ctx,
         modified_block=modified_block,
         captured_live_names=captured_live_names,
+        quantum_scope=quantum_scope,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -176,6 +195,7 @@ def check_cfg(
                 modifier_ctx=modifier_ctx,
                 modified_block=modified_block,
                 captured_live_names=captured_live_names,
+                quantum_scope=quantum_scope,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -340,6 +360,7 @@ def check_bb(
     modifier_ctx: ModifierContext,
     modified_block: ModifiedBlock | None,
     captured_live_names: set[str],
+    quantum_scope: bool | None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -372,6 +393,7 @@ def check_bb(
         modified_block_counter=modified_block_counter,
         current_caller=current_caller,
         modifier_ctx=modifier_ctx,
+        quantum_scope=quantum_scope,
     )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 

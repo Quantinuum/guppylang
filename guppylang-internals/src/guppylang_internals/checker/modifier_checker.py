@@ -104,6 +104,7 @@ def check_modified_block(
         modified_block=modified_block,
         modified_block_name_base=ctx.modified_block_name_base,
         modified_block_counter=ctx.modified_block_counter,
+        parent_quantum_scope=ctx.quantum_scope,
     )
     if ctx.modifier_ctx.control_sizes:
         # Array manipulation code for controls, generated in `compile_modified_block`,

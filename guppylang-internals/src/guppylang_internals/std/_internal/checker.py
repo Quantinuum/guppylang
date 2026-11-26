@@ -25,6 +25,7 @@ from guppylang_internals.checker.expr_checker import (
 )
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
+    DefaultCallChecker,
     InputFlagDefaultMode,
 )
 from guppylang_internals.definition.overloaded import InternalExpectOverloadError
@@ -35,6 +36,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
 )
 from guppylang_internals.nodes import (
     AbortExpr,
@@ -578,6 +580,51 @@ class BarrierChecker(CustomCallChecker):
         assert len(inst) == 0, "func_ty is not generic"
         node = BarrierExpr(args=args, func_ty=func_ty)
         return with_loc(self.node, node), ret_ty
+
+
+class GlobalPhaseChecker(DefaultCallChecker):
+    """Call checker for the `global_phase` function.
+
+    Modifiers are only applied to quantum code, so a global phase would be lost if it
+    were applied in a classical function. Thus, we only allow it inside `control`
+    blocks or in functions with quantum inputs or outputs.
+    """
+
+    @dataclass(frozen=True)
+    class ClassicalScopeError(Error):
+        title: ClassVar[str] = "Global phase in classical context"
+        span_label: ClassVar[str] = (
+            "`{name}` can only be used in a `control` block or in a function with "
+            "quantum inputs or outputs"
+        )
+        name: str
+
+        @dataclass(frozen=True)
+        class HiddenEffectNote(Note):
+            message: ClassVar[str] = (
+                "Restricting global phases to quantum contexts avoids hidden quantum "
+                "effects in classical functions."
+            )
+
+    def _check_scope(self) -> None:
+        if self.ctx.quantum_scope is None:
+            # Whether we are in a quantum scope depends on generic parameters, so wait
+            # for the monomorphic check
+            raise RequiresMonomorphizationError
+        if not self.ctx.quantum_scope:
+            err = self.ClassicalScopeError(self.node, self.func.name)
+            err.add_sub_diagnostic(self.ClassicalScopeError.HiddenEffectNote(None))
+            raise GuppyError(err)
+
+    @override
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        self._check_scope()
+        return super().check(args, ty)
+
+    @override
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        self._check_scope()
+        return super().synthesize(args)
 
 
 class WasmCallChecker(CustomCallChecker):
