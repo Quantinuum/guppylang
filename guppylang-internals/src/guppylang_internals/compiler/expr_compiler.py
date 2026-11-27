@@ -51,6 +51,7 @@ from guppylang_internals.nodes import (
     DesugaredListComp,
     DummyGenericParamValue,
     FieldAccessAndDrop,
+    FunctionCoercion,
     GlobalCall,
     GlobalName,
     LocalCall,
@@ -493,6 +494,88 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         )
         return self.builder.add_op(
             op, self.visit(node.func), *(self.visit(arg) for arg in node.args)
+        )
+
+    def visit_FunctionCoercion(self, node: FunctionCoercion) -> Wire:
+        static_function = None
+        if isinstance(node.func, GlobalName):
+            static_function = self.ctx.build_compiled_def(node.func.def_id, ())
+        elif isinstance(node.func, TypeApply) and isinstance(
+            node.func.value, GlobalName
+        ):
+            static_function = self.ctx.build_compiled_def(
+                node.func.value.def_id, node.func.inst
+            )
+        if static_function is not None:
+            assert isinstance(static_function, CompiledCallableDef)
+            return self._adapt_function(
+                None, node.source_ty, node.target_ty, static_function
+            )
+        check_partial_functions_enabled(node)
+        return self._adapt_function(
+            self.visit(node.func), node.source_ty, node.target_ty
+        )
+
+    def _adapt_function(
+        self,
+        value: Wire | None,
+        source: FunctionType,
+        target: FunctionType,
+        static_function: CompiledCallableDef | None = None,
+    ) -> Wire:
+        if source == target:
+            assert value is not None
+            return value
+        source_ht = source.to_hugr(self.ctx)
+        target_ht = target.to_hugr(self.ctx)
+        wrapper = self.builder.define_function(
+            "borrow_adapter",
+            target_ht.input if static_function else [source_ht, *target_ht.input],
+            target_ht.output,
+        )
+        inputs = list(wrapper.inputs())
+        if static_function is None:
+            func, *args = inputs
+        else:
+            args = inputs
+            assert self.builder.current_ast_node is not None
+            func = static_function.load(
+                DFContainer(wrapper, self.ctx, self.dfg.locals.copy()),
+                self.ctx,
+                self.builder.current_ast_node,
+            )
+        compiler = ExprCompiler(self.ctx)
+        compiler.dfg = DFContainer(wrapper, self.ctx, self.dfg.locals.copy())
+        call_args = []
+        for arg, src, dst in zip(args, source.inputs, target.inputs, strict=True):
+            if isinstance(src.ty, FunctionType) and isinstance(dst.ty, FunctionType):
+                arg = compiler._adapt_function(arg, dst.ty, src.ty)
+            call_args.append(arg)
+        call = wrapper.add_op(
+            (hops.CallIndirect(source_ht), [Effect.ANY]), func, *call_args
+        )
+        num_returns = len(type_to_row(source.output))
+        regular = list(call[:num_returns])
+        if isinstance(source.output, FunctionType) and isinstance(
+            target.output, FunctionType
+        ):
+            regular = [
+                compiler._adapt_function(regular[0], source.output, target.output)
+            ]
+        borrowed = iter(call[num_returns:])
+        outputs = []
+        for arg, src, dst in zip(args, source.inputs, target.inputs, strict=True):
+            updated = next(borrowed) if InputFlags.Inout in src.flags else arg
+            if InputFlags.Inout in dst.flags:
+                outputs.append(updated)
+        wrapper.set_outputs(*regular, *outputs)
+        closure_ty = ht.FunctionType([source_ht, *target_ht.input], target_ht.output)
+        loaded = self.builder.load_function(wrapper)
+        if static_function is not None:
+            return loaded
+        assert value is not None
+        return self.builder.add_op(
+            PartialOp.from_closure(closure_ty, [source_ht]), loaded, value
         )
 
     def visit_TypeApply(self, node: TypeApply) -> Wire:
