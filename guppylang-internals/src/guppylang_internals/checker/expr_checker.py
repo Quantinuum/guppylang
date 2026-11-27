@@ -574,12 +574,16 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     def visit_ComptimeExpr(
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
+        """Check a reified Python value using type hints, then implicit coercions."""
         python_val = eval_comptime_expr(node, self.ctx)
         actval = python_value_to_guppy(python_val, node.value, ty)
         if actval is None:
             raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
         act, val = actval
         if (result := self._check_python_value(val, act, node.value, ty)) is None:
+            expr = with_type(act, with_loc(node, ast.Constant(value=val)))
+            if coerced := try_coerce_to(act, ty, expr, self.ctx):
+                return coerced, {}
             self._fail(ty, act, node)
         expr, subst = result
         return with_loc(node, expr), subst
