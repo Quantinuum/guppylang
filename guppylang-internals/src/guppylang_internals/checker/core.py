@@ -118,6 +118,14 @@ class ComptimeVariable(Variable):
     # Store the static value of the variable.
     static_value: Any
 
+    def __deepcopy__(self, memo: dict[int, Any]) -> "ComptimeVariable":
+        """Copy checker data while preserving the referenced Python runtime value."""
+        return replace(
+            self,
+            ty=copy.deepcopy(self.ty, memo),
+            defined_at=copy.deepcopy(self.defined_at, memo),
+        )
+
 
 @dataclass(frozen=True)
 class FieldAccess:
