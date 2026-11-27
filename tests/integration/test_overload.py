@@ -201,7 +201,7 @@ def test_everything_can_be_overloaded(validate):
     validate(main.compile_function())
 
 
-def test_comptime_overload_struct(validate):
+def test_comptime_overload_struct(run_int_fn):
     """Regression test for https://github.com/Quantinuum/guppylang/issues/2597."""
 
     @guppy.struct
@@ -223,7 +223,32 @@ def test_comptime_overload_struct(validate):
     def main() -> int:
         return to_int(Box(42))
 
-    validate(main.compile_function())
+    run_int_fn(main, expected=42)
+
+
+def test_comptime_overload_borrowed_struct(run_int_fn):
+    @guppy.struct
+    class Box:
+        value: int
+
+    @guppy
+    def increment_int(value: int) -> int:
+        return value + 1
+
+    @guppy
+    def increment_box(box: Box) -> None:
+        box.value += 1
+
+    @guppy.overload(increment_int, increment_box)
+    def increment(value): ...
+
+    @guppy.comptime
+    def main() -> int:
+        box = Box(41)
+        increment(box)
+        return box.value
+
+    run_int_fn(main, expected=42)
 
 
 def test_comptime_linearity_check(validate):
