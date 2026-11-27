@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.3...guppylang-internals-v1.2.4) (2026-11-27)
+
+
+### Bug Fixes
+
+* Coerce values from explicit comptime expressions (#2596)([f7473ce](https://github.com/Quantinuum/guppylang/commit/f7473ce8f48fb5cb488e5b45eefe45fb0eef03a2))
+* Respect user provided link name on comptime functions (#2593)([9b266fd](https://github.com/Quantinuum/guppylang/commit/9b266fd50bf70a9e6b3d3f5b601114223b5485bd))
+* Compile and lower comptime functions with fully qualified names (#2592)([cff4ab1](https://github.com/Quantinuum/guppylang/commit/cff4ab1c77281eabeaab8b7e9af730451b1b0b29))
+
 ## [1.2.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.2...guppylang-internals-v1.2.3) (2026-11-26)
 
 
