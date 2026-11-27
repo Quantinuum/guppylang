@@ -369,6 +369,20 @@ class _Guppy:
                 def ctrl_daggered[n: nat](q: qubit,
                                   controls: array[qubit, n]) -> None: ...
 
+                @guppy
+                def powered(q: qubit, exponent: nat) -> None: ...
+
+                @guppy
+                def power_daggered(q: qubit, exponent: nat) -> None: ...
+
+                @guppy
+                def ctrl_powered[n: nat](q: qubit, controls: array[qubit, n],
+                                         exponent: nat) -> None: ...
+
+                @guppy
+                def ctrl_power_daggered[n: nat](q: qubit,
+                    controls: array[qubit, n], exponent: nat) -> None: ...
+
             @guppy
             def main(q: qubit) -> None:
                 # myGate can be used as a function
@@ -377,6 +391,12 @@ class _Guppy:
                 with dagger:
                     myGate(q) # using the `myGate.daggered` implementation
 
+        Every class must define ``__call__``. A custom ``daggered`` method has the
+        same signature as ``__call__``. The ``controlled`` and ``ctrl_daggered``
+        methods append a control parameter of type ``array[qubit, n]``, where
+        ``n`` is a fresh ``nat`` type parameter. Power methods match ``__call__``,
+        with a control array for controlled variants and a final runtime ``nat``
+        exponent.
         """
         _check_there_are_no_kwargs(kwargs)
         call_guppy_def = _get_unitary_call_def(cls)
