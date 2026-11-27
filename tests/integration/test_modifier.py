@@ -1,6 +1,7 @@
 import base64
 from collections.abc import Callable
 import pytest
+from pytket.circuit import Circuit, Op, OpType, QControlBox
 
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
@@ -21,7 +22,10 @@ from guppylang.std.builtins import (
 from guppylang.std.num import nat
 from guppylang.std.quantum import (
     angle,
+    crz,
     cx,
+    cy,
+    cz,
     discard,
     h,
     measure,
@@ -33,6 +37,7 @@ from guppylang.std.quantum import (
     sdg,
     t,
     tdg,
+    toffoli,
     v,
     vdg,
     discard_array,
@@ -177,6 +182,97 @@ def test_control_creates_bell_state(run_statevector_fn):
         return array(ctrl, target)
 
     run_statevector_fn(main, expected=[2**-0.5, 0, 0, 2**-0.5], num_qubits=2)
+
+
+@pytest.mark.parametrize(
+    ("gate", "op_type", "num_controls"),
+    [
+        pytest.param(gate, op_type, count, id=f"{op_type.name}-{count}-controls")
+        for gate, op_type in [
+            (x, OpType.X),
+            (cx, OpType.CX),
+            (toffoli, OpType.CCX),
+            (y, OpType.Y),
+            (cy, OpType.CY),
+            (z, OpType.Z),
+            (cz, OpType.CZ),
+            (h, OpType.H),
+            (rx, OpType.Rx),
+            (ry, OpType.Ry),
+            (rz, OpType.Rz),
+            (crz, OpType.CRz),
+        ]
+        for count in (range(1, 5) if op_type == OpType.X else range(1, 3))
+    ],
+)
+def test_controlled_gate(gate, op_type, num_controls, run_statevector_fn):
+    is_rotation = op_type in (OpType.Rx, OpType.Ry, OpType.Rz, OpType.CRz)
+    op = Op.create(op_type, 0.25) if is_rotation else Op.create(op_type)
+    num_targets = op.n_qubits
+    num_operands = num_controls + num_targets
+    num_qubits = 2 * num_operands
+
+    if num_targets == 1:
+        if is_rotation:
+
+            @guppy(controllable=True)
+            def apply_gate(qs: array[qubit, 1]) -> None:
+                gate(qs[0], angle(0.25))
+
+        else:
+
+            @guppy(controllable=True)
+            def apply_gate(qs: array[qubit, 1]) -> None:
+                gate(qs[0])
+
+    elif num_targets == 2:
+        if is_rotation:
+
+            @guppy(controllable=True)
+            def apply_gate(qs: array[qubit, 2]) -> None:
+                gate(qs[0], qs[1], angle(0.25))
+
+        else:
+
+            @guppy(controllable=True)
+            def apply_gate(qs: array[qubit, 2]) -> None:
+                gate(qs[0], qs[1])
+
+    else:
+
+        @guppy(controllable=True)
+        def apply_gate(qs: array[qubit, 3]) -> None:
+            gate(qs[0], qs[1], qs[2])
+
+    @guppy
+    def main() -> array[qubit, num_qubits]:
+        controls = array(qubit() for _ in range(num_controls))
+        targets = array(qubit() for _ in range(num_targets))
+        control_refs = array(qubit() for _ in range(num_controls))
+        target_refs = array(qubit() for _ in range(num_targets))
+
+        # Probe every input basis state and its coherence with reference qubits.
+        for i in range(num_controls):
+            h(control_refs[i])
+            cx(control_refs[i], controls[i])
+        for i in range(num_targets):
+            h(target_refs[i])
+            cx(target_refs[i], targets[i])
+
+        with control(controls):
+            apply_gate(targets)
+
+        return controls.concat(targets).concat(control_refs).concat(target_refs)
+
+    expected = Circuit(num_operands)
+    expected.add_qcontrolbox(QControlBox(op, num_controls), list(range(num_operands)))
+    # For Bell-paired operands and references, the final state is the flattened
+    # unitary divided by sqrt(2**num_operands), ordered [operands, references].
+    expected_state = expected.get_unitary().reshape(-1) / 2 ** (num_operands / 2)
+
+    # X with four controls also exercises recursive dirty-qubit borrowing;
+    # comparing the complete state checks restoration of all entanglement.
+    run_statevector_fn(main, expected=expected_state.tolist(), num_qubits=num_qubits)
 
 
 def test_control_multiple(validate):
