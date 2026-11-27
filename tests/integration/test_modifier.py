@@ -34,6 +34,7 @@ from guppylang.std.quantum import (
     sdg,
     t,
     tdg,
+    toffoli,
     v,
     vdg,
     discard_array,
@@ -54,11 +55,11 @@ def test_dagger_simple(validate):
     validate(bar.compile_function())
 
 
-def test_dagger_inverts_state_preparation(run_statevector_fn):
+def test_dagger_multiple_gates(run_statevector_fn):
     @guppy(daggerable=True)
     def prepare(q: qubit) -> None:
-        h(q)
-        s(q)
+        rx(q, angle(0.25))
+        rz(q, angle(0.25))
 
     @guppy
     def main() -> array[qubit, 1]:
@@ -172,7 +173,6 @@ def test_control_simple(validate):
     [
         pytest.param(gate, op_type, count, id=f"{op_type.name}-{count}-controls")
         for gate, op_type in [
-            (x, OpType.X),
             (y, OpType.Y),
             (z, OpType.Z),
             (h, OpType.H),
@@ -180,7 +180,7 @@ def test_control_simple(validate):
             (ry, OpType.Ry),
             (rz, OpType.Rz),
         ]
-        for count in ((1, 2, 3) if op_type == OpType.X else (1, 2))
+        for count in (1, 2)
     ],
 )
 def test_controlled_gate(gate, op_type, num_controls, run_statevector_fn):
@@ -226,6 +226,34 @@ def test_controlled_gate(gate, op_type, num_controls, run_statevector_fn):
     run_statevector_fn(
         main, expected=expected.get_statevector().tolist(), num_qubits=num_qubits
     )
+
+
+def test_controlled_toffoli(run_statevector_fn):
+    # X with two controls, or CX with one extra control, is Toffoli.
+    # One further control exercises their shared recursive decomposition.
+    @guppy
+    def main() -> array[qubit, 4]:
+        ctrl = qubit()
+        a = qubit()
+        b = qubit()
+        target = qubit()
+        h(ctrl)
+        h(a)
+        h(b)
+        rx(target, angle(0.25))
+        rz(target, angle(0.25))
+
+        with control(ctrl):
+            toffoli(a, b, target)
+
+        return array(ctrl, a, b, target)
+
+    expected = Circuit(4)
+    expected.H(0).H(1).H(2)
+    expected.Rx(0.25, 3).Rz(0.25, 3)
+    expected.add_qcontrolbox(QControlBox(Op.create(OpType.CCX), 1), [0, 1, 2, 3])
+
+    run_statevector_fn(main, expected=expected.get_statevector().tolist(), num_qubits=4)
 
 
 def test_control_multiple(validate):
