@@ -217,12 +217,19 @@ class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
             )
         ).modules[0]
 
+        from hugr.ops import FuncDefn
+
+        for _, data in circ.nodes():
+            if isinstance(data.op, FuncDefn):
+                data.op.f_name = ctx.function_link_name(data.op.f_name)
         mapping = module.hugr.insert_hugr(circ)
         hugr_func = mapping[circ.entrypoint]
 
         func_type = self.ty.to_hugr_poly(ctx)
         outer_func = module.module_root_builder().define_function(
-            self.name, func_type.body.input, func_type.body.output
+            ctx.function_link_name(self.name),
+            func_type.body.input,
+            func_type.body.output,
         )
 
         hugr_func_metadata = module.hugr[hugr_func].metadata

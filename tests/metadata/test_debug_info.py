@@ -151,9 +151,9 @@ def test_subprogram():
     assert debug_info.line_no == _marker_loc(RESOURCE_PATH, "def_pytket_bar_stub")[0]
     assert debug_info.scope_line is None
 
-    inner_func = func_map.pop("")
-    # No metadata on the inner circuit function.
-    assert HugrDebugInfo not in hugr[inner_func].metadata
+    # Both pytket wrappers import an anonymous inner circuit without Guppy debug info.
+    for name in ("", "#1"):
+        assert HugrDebugInfo not in hugr[func_map.pop(name)].metadata
 
     nested_func = func_map.pop("nested_func")
     nested_func_metadata = hugr[nested_func].metadata

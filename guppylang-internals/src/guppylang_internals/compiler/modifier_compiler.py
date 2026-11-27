@@ -58,7 +58,7 @@ def compile_modified_block(
     other_in_arg = ht.ListArg([t.type_arg() for t in other_in_ht])
 
     func_builder = dfg.builder.define_function(
-        str(modified_block), hugr_ty.input, hugr_ty.output
+        ctx.function_link_name(str(modified_block)), hugr_ty.input, hugr_ty.output
     )
     add_unitary_metadata(
         func_builder._raw.hugr[func_builder].metadata,

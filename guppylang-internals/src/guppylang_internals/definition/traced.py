@@ -86,6 +86,7 @@ class RawTracedFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             python_func=py_func,
             link_name=link_name,
+            user_provided_link_name=self._user_set_link_name is not None,
             unitary_flags=self.unitary_flags,
             is_static=is_static,
             metadata=self.metadata,
@@ -97,6 +98,9 @@ class TracedFunctionDef(CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
     python_func: PyFunc
     link_name: str
+
+    # Retain the origin of the name through checking and monomorphization.
+    user_provided_link_name: bool = field(default=False, kw_only=True)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
@@ -135,6 +139,7 @@ class TracedFunctionDef(CallableDef, CheckableGenericDef):
             trace=trace,
             python_func=self.python_func,
             link_name=self.link_name,
+            user_provided_link_name=self.user_provided_link_name,
             unitary_flags=self.unitary_flags,
             is_static=self.is_static,
             metadata=self.metadata,
@@ -178,7 +183,10 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
         """
         func_type = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            monomorphized_link_name(self.link_name, self.inst),
+            ctx.function_link_name(
+                monomorphized_link_name(self.link_name, self.inst),
+                preserve_name=self.user_provided_link_name and not self.inst,
+            ),
             func_type.body.input,
             func_type.body.output,
             func_type.params,
@@ -202,6 +210,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             func_def=func_def,
             effects=ctx.effects[(self.id, self.inst)],
             link_name=self.link_name,
+            user_provided_link_name=self.user_provided_link_name,
             unitary_flags=self.unitary_flags,
             is_static=self.is_static,
             metadata=self.metadata,

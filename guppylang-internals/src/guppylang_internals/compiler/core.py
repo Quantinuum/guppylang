@@ -112,6 +112,10 @@ class CompilerContext(ToHugrContext):
 
     global_funcs: dict[MonoGlobalConstId, hf.Function]
 
+    #: Names allocated in this module, and collision counters for their base names.
+    used_function_names: set[str]
+    function_name_counters: dict[str, int]
+
     #: The definitions that should be exported (i.e. made public) in the Hugr module
     #: currently being built. For compilation of single entrypoints, this will be just
     #: that entrypoint, while for compilation of libraries this will contain all
@@ -137,6 +141,8 @@ class CompilerContext(ToHugrContext):
         custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
         file_table: StringTable | None = None,
     ) -> None:
+        self.used_function_names = set()
+        self.function_name_counters = {}
         self.module = module
         self.worklist = {}
         self.compiled = {}
@@ -149,6 +155,21 @@ class CompilerContext(ToHugrContext):
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
+
+    def function_link_name(self, name: str, *, preserve_name: bool = False) -> str:
+        """Uniquify generated names, leaving user-provided names unchanged."""
+        # TODO: User-provided names may clash with names already emitted, including
+        # generated names. Diagnose these clashes in
+        # https://github.com/Quantinuum/guppylang/issues/2579.
+        if not preserve_name:
+            base = name
+            suffix = self.function_name_counters.get(base, 0)
+            while name in self.used_function_names:
+                suffix += 1
+                name = f"{base}#{suffix}"
+            self.function_name_counters[base] = suffix
+        self.used_function_names.add(name)
+        return name
 
     def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
         """Returns the compiled definitions corresponding to the given ID.
@@ -286,7 +307,7 @@ class CompilerContext(ToHugrContext):
         if (const_id, mono_args) in self.global_funcs:
             return self.global_funcs[const_id, mono_args], True
         func = self.module.module_root_builder().define_function(
-            name=const_id.name,
+            name=self.function_link_name(const_id.base_name),
             input_types=func_ty.body.input,
             output_types=func_ty.body.output,
             type_params=func_ty.params,

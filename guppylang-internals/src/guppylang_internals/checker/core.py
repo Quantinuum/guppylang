@@ -451,8 +451,6 @@ class Context(NamedTuple):
     globals: Globals
     locals: Locals[str, Variable]
     generic_param_inst: dict[str, Argument]
-    modified_block_name_base: str = ""
-    modified_block_counter: Iterator[int] | None = None
 
     """If not None, the call graph node for the function being checked, which also
     stores the effect constraints that function calls in this context must respect,

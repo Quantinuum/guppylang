@@ -44,9 +44,7 @@ def _func_names_excluding_main_and_withblocks(
     package: Package, qualifier: str
 ) -> set[str]:
     func_names = _func_names_excluding_main(package, qualifier)
-    with_block_pattern = re.compile(
-        rf"{re.escape(qualifier)}\.<locals>\.main\.__WithBlock__\d+"
-    )
+    with_block_pattern = re.compile(r"__WithBlock__(?:#\d+)?")
     with_block_names = {
         name for name in func_names if with_block_pattern.fullmatch(name)
     }
@@ -486,6 +484,109 @@ def test_comptime_same_name_different_scopes(qualifier):
     prefix = f"{qualifier}.<locals>"
     assert f"{prefix}.first_scope.<locals>.same_name" in names
     assert f"{prefix}.second_scope.<locals>.same_name" in names
+
+
+def test_nested_names_skip_used_link_names(qualifier):
+    from collections.abc import Callable
+
+    @guppy
+    def invoke[F: Callable[[], int]](f: F) -> int:
+        return f()
+
+    @guppy
+    @link_name("step")
+    def explicit() -> int:
+        return 3
+
+    @guppy
+    def main() -> int:
+        result = explicit()
+
+        def step() -> int:
+            return 1
+
+        first = step
+
+        def step() -> int:
+            return 2
+
+        return invoke(first) + invoke(step) + result
+
+    package = main.with_minimal_opt().compile()
+    assert _func_names(package) == {
+        f"{qualifier}.<locals>.main",
+        f"{qualifier}.<locals>.invoke$def step() -> int",
+        f"{qualifier}.<locals>.invoke$def step() -> int#1",
+        "step",
+        "step#1",
+        "step#2",
+    }
+    explicit.compile_function()
+    assert (
+        main.with_minimal_opt().compile().modules[0].to_str()
+        == package.modules[0].to_str()
+    )
+
+
+@pytest.mark.parametrize("decorator", [guppy, guppy.comptime])
+def test_duplicate_explicit_link_names(decorator):
+    """
+    User-provided names may clash with names already emitted. Diagnose these clashes
+    in https://github.com/Quantinuum/guppylang/issues/2579.
+    """
+
+    @decorator
+    @link_name("shared")
+    def first() -> int:
+        return 1
+
+    @decorator
+    @link_name("shared")
+    def second() -> int:
+        return 2
+
+    @guppy
+    def main() -> int:
+        return first() + second()
+
+    hugr = main.with_minimal_opt().compile().modules[0]
+    names = [data.op.f_name for data in hugr.values() if isinstance(data.op, FuncDefn)]
+    assert names.count("shared") == 2
+
+
+@pytest.mark.parametrize("decorator", [guppy, guppy.comptime])
+def test_specialized_explicit_link_names_are_unique(decorator):
+    from collections.abc import Callable
+
+    def make_callback(value: int):
+        @guppy.comptime
+        def callback() -> int:
+            return value
+
+        return callback
+
+    first = make_callback(1)
+    second = make_callback(2)
+
+    @decorator
+    @link_name("invoke")
+    def invoke[F: Callable[[], int]](f: F) -> int:
+        return 0
+
+    @guppy
+    def main() -> int:
+        return invoke(first) + invoke(second)
+
+    hugr = main.with_minimal_opt().compile().modules[0]
+    names = [
+        data.op.f_name
+        for data in hugr.values()
+        if isinstance(data.op, FuncDefn) and data.op.f_name.startswith("invoke$")
+    ]
+    assert sorted(names) == [
+        "invoke$def callback() -> int",
+        "invoke$def callback() -> int#1",
+    ]
 
 
 def test_comptime_respects_user_link_name(qualifier):

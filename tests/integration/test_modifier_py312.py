@@ -9,7 +9,7 @@ from guppylang.std.builtins import (
     dagger,
     nat,
 )
-from guppylang.std.quantum import h, qubit
+from guppylang.std.quantum import discard, h, measure, qubit, x
 
 
 def test_generic_nat_in_dagger(validate):
@@ -78,3 +78,41 @@ def test_higher_order_unitary_callable(validate):
         apply_unitary(foo, q1, q2)
 
     validate(main.compile_function())
+
+
+def test_custom_control_with_same_named_callbacks(run_int_fn):
+    """Checking modifier behavior with gate factory see: https://github.com/Quantinuum/guppylang/issues/2563"""
+
+    def make_gate(flip: bool):
+        @guppy.comptime(unitary=True)
+        def gate(q: qubit) -> None:
+            if flip:
+                x(q)
+
+        return gate
+
+    identity = make_gate(False)
+    flip = make_gate(True)
+
+    @guppy.unitary
+    class apply[G: Unitary[[qubit], None]]:
+        @guppy(unitary=True)
+        def __call__(q: qubit, gate: G) -> None:
+            gate(q)
+
+        @guppy
+        def controlled[n: nat](q: qubit, gate: G, controls: array[qubit, n]) -> None:
+            with control(controls):
+                gate(q)
+
+    @guppy
+    def main() -> int:
+        flag, target = qubit(), qubit()
+        x(flag)
+        with control(flag):
+            apply(target, identity)
+            apply(target, flip)
+        discard(flag)
+        return int(measure(target).read())
+
+    run_int_fn(main, expected=1, num_qubits=2)
