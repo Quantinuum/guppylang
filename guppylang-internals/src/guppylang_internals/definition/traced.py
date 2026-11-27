@@ -25,7 +25,9 @@ from guppylang_internals.definition.common import (
     ParsableDef,
 )
 from guppylang_internals.definition.function import (
+    default_func_link_name,
     make_subprogram_record,
+    monomorphized_link_name,
     parse_py_func,
 )
 from guppylang_internals.definition.value import (
@@ -167,7 +169,10 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
         """
         func_type = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            self.name, func_type.body.input, func_type.body.output, func_type.params
+            monomorphized_link_name(default_func_link_name(self), self.inst),
+            func_type.body.input,
+            func_type.body.output,
+            func_type.params,
         )
         add_metadata(
             module.hugr[func_def].metadata,
