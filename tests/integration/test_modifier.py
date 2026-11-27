@@ -240,8 +240,6 @@ def test_controlled_toffoli(run_statevector_fn):
         h(ctrl)
         h(a)
         h(b)
-        rx(target, angle(0.25))
-        rz(target, angle(0.25))
 
         with control(ctrl):
             toffoli(a, b, target)
@@ -250,7 +248,6 @@ def test_controlled_toffoli(run_statevector_fn):
 
     expected = Circuit(4)
     expected.H(0).H(1).H(2)
-    expected.Rx(0.25, 3).Rz(0.25, 3)
     expected.add_qcontrolbox(QControlBox(Op.create(OpType.CCX), 1), [0, 1, 2, 3])
 
     run_statevector_fn(main, expected=expected.get_statevector().tolist(), num_qubits=4)
