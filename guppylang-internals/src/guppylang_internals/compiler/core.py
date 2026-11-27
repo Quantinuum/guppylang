@@ -156,12 +156,12 @@ class CompilerContext(ToHugrContext):
             file_table if file_table is not None else StringTable([])
         )
 
-    def function_link_name(self, name: str, *, user_provided: bool = False) -> str:
+    def function_link_name(self, name: str, *, preserve_name: bool = False) -> str:
         """Uniquify generated names, leaving user-provided names unchanged."""
         # TODO: User-provided names may clash with names already emitted, including
         # generated names. Diagnose these clashes in
         # https://github.com/Quantinuum/guppylang/issues/2579.
-        if not user_provided:
+        if not preserve_name:
             base = name
             suffix = self.function_name_counters.get(base, 0)
             while name in self.used_function_names:

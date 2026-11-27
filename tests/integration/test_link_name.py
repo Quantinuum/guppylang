@@ -554,6 +554,41 @@ def test_duplicate_explicit_link_names(decorator):
     assert names.count("shared") == 2
 
 
+@pytest.mark.parametrize("decorator", [guppy, guppy.comptime])
+def test_specialized_explicit_link_names_are_unique(decorator):
+    from collections.abc import Callable
+
+    def make_callback(value: int):
+        @guppy.comptime
+        def callback() -> int:
+            return value
+
+        return callback
+
+    first = make_callback(1)
+    second = make_callback(2)
+
+    @decorator
+    @link_name("invoke")
+    def invoke[F: Callable[[], int]](f: F) -> int:
+        return 0
+
+    @guppy
+    def main() -> int:
+        return invoke(first) + invoke(second)
+
+    hugr = main.with_minimal_opt().compile().modules[0]
+    names = [
+        data.op.f_name
+        for data in hugr.values()
+        if isinstance(data.op, FuncDefn) and data.op.f_name.startswith("invoke$")
+    ]
+    assert sorted(names) == [
+        "invoke$def callback() -> int",
+        "invoke$def callback() -> int#1",
+    ]
+
+
 def test_comptime_respects_user_link_name(qualifier):
     """Regression test for https://github.com/Quantinuum/guppylang/issues/2578."""
     from guppylang.std.array import array

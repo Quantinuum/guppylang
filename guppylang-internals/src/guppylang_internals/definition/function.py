@@ -348,7 +348,10 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         """
         hugr_ty = self.ty.to_hugr_poly(ctx)
         link_name = ctx.function_link_name(
-            self.link_name, user_provided=self.user_provided_link_name
+            self.link_name,
+            # If the function is generic, the name will be changed even if explicit,
+            # thus uniqueness is required
+            preserve_name=self.user_provided_link_name and not self.mono_args,
         )
         func_def = module.module_root_builder().define_function(
             link_name,

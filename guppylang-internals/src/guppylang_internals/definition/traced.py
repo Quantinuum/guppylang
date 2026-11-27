@@ -185,7 +185,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
         func_def = module.module_root_builder().define_function(
             ctx.function_link_name(
                 monomorphized_link_name(self.link_name, self.inst),
-                user_provided=self.user_provided_link_name,
+                preserve_name=self.user_provided_link_name and not self.inst,
             ),
             func_type.body.input,
             func_type.body.output,

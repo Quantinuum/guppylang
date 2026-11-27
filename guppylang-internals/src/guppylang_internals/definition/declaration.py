@@ -228,7 +228,11 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             "Functions can only be declared in modules"
         )
 
-        node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
+        # Preserve external symbol names.
+        node = module.declare_function(
+            ctx.function_link_name(self.link_name, preserve_name=True),
+            self.ty.to_hugr_poly(ctx),
+        )
         add_metadata(
             module.hugr[node].metadata,
             self.metadata,
