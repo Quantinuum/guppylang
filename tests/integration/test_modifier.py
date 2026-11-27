@@ -246,11 +246,9 @@ def test_controlled_toffoli(run_statevector_fn):
 
         return array(ctrl, a, b, target)
 
-    expected = Circuit(4)
-    expected.H(0).H(1).H(2)
-    expected.add_qcontrolbox(QControlBox(Op.create(OpType.CCX), 1), [0, 1, 2, 3])
-
-    run_statevector_fn(main, expected=expected.get_statevector().tolist(), num_qubits=4)
+    amplitude = 1 / 8**0.5
+    expected = [amplitude, 0] * 7 + [0, amplitude]
+    run_statevector_fn(main, expected=expected, num_qubits=4)
 
 
 def test_control_multiple(validate):
