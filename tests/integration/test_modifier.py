@@ -28,6 +28,7 @@ from guppylang.std.quantum import (
     qubit,
     rx,
     rz,
+    s,
     discard_array,
     x,
 )
@@ -42,6 +43,23 @@ def test_dagger_simple(validate):
             pass
 
     validate(bar.compile_function())
+
+
+def test_dagger_inverts_state_preparation(run_statevector_fn):
+    @guppy(daggerable=True)
+    def prepare(q: qubit) -> None:
+        h(q)
+        s(q)
+
+    @guppy
+    def main() -> array[qubit, 1]:
+        q = qubit()
+        prepare(q)
+        with dagger:
+            prepare(q)
+        return array(q)
+
+    run_statevector_fn(main, expected=[1, 0], num_qubits=1)
 
 
 def test_dagger_call_simple(validate):
@@ -93,6 +111,19 @@ def test_control_simple(validate):
             pass
 
     validate(bar.compile_function())
+
+
+def test_control_creates_bell_state(run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 2]:
+        ctrl = qubit()
+        target = qubit()
+        h(ctrl)
+        with control(ctrl):
+            x(target)
+        return array(ctrl, target)
+
+    run_statevector_fn(main, expected=[2**-0.5, 0, 0, 2**-0.5], num_qubits=2)
 
 
 def test_control_multiple(validate):
