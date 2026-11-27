@@ -486,3 +486,25 @@ def test_comptime_same_name_different_scopes(qualifier):
     prefix = f"{qualifier}.<locals>"
     assert f"{prefix}.first_scope.<locals>.same_name" in names
     assert f"{prefix}.second_scope.<locals>.same_name" in names
+
+
+def test_comptime_respects_user_link_name(qualifier):
+    """Regression test for https://github.com/Quantinuum/guppylang/issues/2578."""
+    from guppylang.std.array import array
+
+    n = guppy.nat_var("n")
+
+    @guppy.comptime
+    @link_name("totally_qualified_override_name")
+    def values() -> array[int, n]:
+        return list(range(n))
+
+    @guppy
+    def main() -> None:
+        _ = values[2]()
+        _ = values[3]()
+
+    names = _func_names(main.with_minimal_opt().compile())
+    prefix = "totally_qualified_override_name"
+    assert f"{prefix}$2" in names
+    assert f"{prefix}$3" in names

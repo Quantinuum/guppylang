@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:11:15)
+   | 
+ 9 | @guppy
+10 | def main() -> int:
+11 |     return foo(comptime((1, 2)))
+   |                ^^^^^^^^^^^^^^^^ Expected expression of type `(int)`, got `(int, int)`
+
+Guppy compilation failed due to 1 previous error

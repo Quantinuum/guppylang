@@ -574,12 +574,16 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     def visit_ComptimeExpr(
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
+        """Check a reified Python value using type hints, then implicit coercions."""
         python_val = eval_comptime_expr(node, self.ctx)
         actval = python_value_to_guppy(python_val, node.value, ty)
         if actval is None:
             raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
         act, val = actval
         if (result := self._check_python_value(val, act, node.value, ty)) is None:
+            expr = with_type(act, with_loc(node, ast.Constant(value=val)))
+            if coerced := try_coerce_to(act, ty, expr, self.ctx):
+                return coerced, {}
             self._fail(ty, act, node)
         expr, subst = result
         return with_loc(node, expr), subst
@@ -2127,6 +2131,7 @@ def check_generator(
         ctx.generic_param_inst,
         current_caller=ctx.current_caller,
         modifier_ctx=ctx.modifier_ctx,
+        quantum_scope=ctx.quantum_scope,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
@@ -2223,11 +2228,12 @@ def python_value_to_guppy(
             hints = (
                 type_hint.element_types
                 if isinstance(type_hint, TupleType)
+                and len(elts) == len(type_hint.element_types)
                 else len(elts) * [None]
             )
             tys: list[Type] = []
             vals: list[Any] = []
-            for elt, hint in zip(elts, hints, strict=False):
+            for elt, hint in zip(elts, hints, strict=True):
                 tyval = python_value_to_guppy(elt, node, hint)
                 if tyval is None:
                     err = UnsupportedPythonValueError(node, type(elt))

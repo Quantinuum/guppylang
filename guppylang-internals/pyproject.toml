@@ -1,6 +1,6 @@
 [project]
 name = "guppylang-internals"
-version = "1.2.2"
+version = "1.2.3"
 requires-python = ">=3.12,<4"
 description = "Compiler internals for `guppylang` package."
 license = { file = "LICENCE" }
@@ -24,6 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
