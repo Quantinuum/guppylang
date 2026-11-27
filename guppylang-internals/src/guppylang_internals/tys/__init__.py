@@ -100,6 +100,8 @@ class Effect(Enum):
 
 def extract_effect_types(
     effects: Iterable[Effect | EffectType],
+    *,
+    include_subsumed: bool = False,
 ) -> Iterable[EffectType]:
     for e in effects:
         if isinstance(e, Effect):
@@ -107,7 +109,7 @@ def extract_effect_types(
         else:
             etys = [e]
         for et in etys:
-            if isinstance(et, StronglyOrdered):
+            if include_subsumed and isinstance(et, StronglyOrdered):
                 # Strong allows weak effects too
                 yield WeaklyOrdered(et.base)
             yield et
