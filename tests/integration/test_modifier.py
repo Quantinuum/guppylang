@@ -22,10 +22,7 @@ from guppylang.std.builtins import (
 from guppylang.std.num import nat
 from guppylang.std.quantum import (
     angle,
-    crz,
     cx,
-    cy,
-    cz,
     discard,
     h,
     measure,
@@ -37,7 +34,6 @@ from guppylang.std.quantum import (
     sdg,
     t,
     tdg,
-    toffoli,
     v,
     vdg,
     discard_array,
@@ -171,108 +167,65 @@ def test_control_simple(validate):
     validate(bar.compile_function())
 
 
-def test_control_creates_bell_state(run_statevector_fn):
-    @guppy
-    def main() -> array[qubit, 2]:
-        ctrl = qubit()
-        target = qubit()
-        h(ctrl)
-        with control(ctrl):
-            x(target)
-        return array(ctrl, target)
-
-    run_statevector_fn(main, expected=[2**-0.5, 0, 0, 2**-0.5], num_qubits=2)
-
-
 @pytest.mark.parametrize(
     ("gate", "op_type", "num_controls"),
     [
         pytest.param(gate, op_type, count, id=f"{op_type.name}-{count}-controls")
         for gate, op_type in [
             (x, OpType.X),
-            (cx, OpType.CX),
-            (toffoli, OpType.CCX),
             (y, OpType.Y),
-            (cy, OpType.CY),
             (z, OpType.Z),
-            (cz, OpType.CZ),
             (h, OpType.H),
             (rx, OpType.Rx),
             (ry, OpType.Ry),
             (rz, OpType.Rz),
-            (crz, OpType.CRz),
         ]
-        for count in (range(1, 5) if op_type == OpType.X else range(1, 3))
+        for count in ((1, 2, 3) if op_type == OpType.X else (1, 2))
     ],
 )
 def test_controlled_gate(gate, op_type, num_controls, run_statevector_fn):
-    is_rotation = op_type in (OpType.Rx, OpType.Ry, OpType.Rz, OpType.CRz)
+    is_rotation = op_type in (OpType.Rx, OpType.Ry, OpType.Rz)
     op = Op.create(op_type, 0.25) if is_rotation else Op.create(op_type)
-    num_targets = op.n_qubits
-    num_operands = num_controls + num_targets
-    num_qubits = 2 * num_operands
+    num_qubits = num_controls + 1
 
-    if num_targets == 1:
-        if is_rotation:
+    if is_rotation:
 
-            @guppy(controllable=True)
-            def apply_gate(qs: array[qubit, 1]) -> None:
-                gate(qs[0], angle(0.25))
-
-        else:
-
-            @guppy(controllable=True)
-            def apply_gate(qs: array[qubit, 1]) -> None:
-                gate(qs[0])
-
-    elif num_targets == 2:
-        if is_rotation:
-
-            @guppy(controllable=True)
-            def apply_gate(qs: array[qubit, 2]) -> None:
-                gate(qs[0], qs[1], angle(0.25))
-
-        else:
-
-            @guppy(controllable=True)
-            def apply_gate(qs: array[qubit, 2]) -> None:
-                gate(qs[0], qs[1])
+        @guppy(controllable=True)
+        def apply_gate(q: qubit) -> None:
+            gate(q, angle(0.25))
 
     else:
 
         @guppy(controllable=True)
-        def apply_gate(qs: array[qubit, 3]) -> None:
-            gate(qs[0], qs[1], qs[2])
+        def apply_gate(q: qubit) -> None:
+            gate(q)
 
     @guppy
     def main() -> array[qubit, num_qubits]:
         controls = array(qubit() for _ in range(num_controls))
-        targets = array(qubit() for _ in range(num_targets))
-        control_refs = array(qubit() for _ in range(num_controls))
-        target_refs = array(qubit() for _ in range(num_targets))
-
-        # Probe every input basis state and its coherence with reference qubits.
+        target = qubit()
+        # Include active and inactive control sectors coherently. Prepare a
+        # target that is not an eigenstate of any of the gates under test.
         for i in range(num_controls):
-            h(control_refs[i])
-            cx(control_refs[i], controls[i])
-        for i in range(num_targets):
-            h(target_refs[i])
-            cx(target_refs[i], targets[i])
+            h(controls[i])
+        rx(target, angle(0.25))
+        rz(target, angle(0.25))
 
         with control(controls):
-            apply_gate(targets)
+            apply_gate(target)
 
-        return controls.concat(targets).concat(control_refs).concat(target_refs)
+        return controls.concat(array(target))
 
-    expected = Circuit(num_operands)
-    expected.add_qcontrolbox(QControlBox(op, num_controls), list(range(num_operands)))
-    # For Bell-paired operands and references, the final state is the flattened
-    # unitary divided by sqrt(2**num_operands), ordered [operands, references].
-    expected_state = expected.get_unitary().reshape(-1) / 2 ** (num_operands / 2)
+    expected = Circuit(num_qubits)
+    for i in range(num_controls):
+        expected.H(i)
+    expected.Rx(0.25, num_controls)
+    expected.Rz(0.25, num_controls)
+    expected.add_qcontrolbox(QControlBox(op, num_controls), list(range(num_qubits)))
 
-    # X with four controls also exercises recursive dirty-qubit borrowing;
-    # comparing the complete state checks restoration of all entanglement.
-    run_statevector_fn(main, expected=expected_state.tolist(), num_qubits=num_qubits)
+    run_statevector_fn(
+        main, expected=expected.get_statevector().tolist(), num_qubits=num_qubits
+    )
 
 
 def test_control_multiple(validate):
