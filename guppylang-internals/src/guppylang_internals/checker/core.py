@@ -460,6 +460,13 @@ class Context(NamedTuple):
     #: Active modifiers the function is being called with
     modifier_ctx: ModifierContext = NO_CALL_MODIFIERS
 
+    #: Whether the code being checked is inside a `control` block or the body of a
+    #: function with quantum inputs or outputs (or nested in such code). Operations like
+    #: `global_phase` are only allowed in such scopes, since modifiers are only applied
+    #: to quantum code. `None` means this depends on how the generic parameters of the
+    #: function are instantiated.
+    quantum_scope: bool | None = False
+
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":
         """A type parsing context derived from this checking context."""

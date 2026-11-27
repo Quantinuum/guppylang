@@ -97,6 +97,7 @@ def check_modified_block(
         current_caller=ctx.current_caller,
         modifier_ctx=ctx.modifier_ctx,
         modified_block=modified_block,
+        parent_quantum_scope=ctx.quantum_scope,
     )
     if ctx.modifier_ctx.control_sizes:
         # Array manipulation code for controls, generated in `compile_modified_block`,

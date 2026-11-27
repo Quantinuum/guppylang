@@ -528,18 +528,19 @@ def test_nested_names_skip_used_link_names(qualifier):
     )
 
 
-def test_duplicate_explicit_link_names():
+@pytest.mark.parametrize("decorator", [guppy, guppy.comptime])
+def test_duplicate_explicit_link_names(decorator):
     """
     User-provided names may clash with names already emitted. Diagnose these clashes
     in https://github.com/Quantinuum/guppylang/issues/2579.
     """
 
-    @guppy
+    @decorator
     @link_name("shared")
     def first() -> int:
         return 1
 
-    @guppy
+    @decorator
     @link_name("shared")
     def second() -> int:
         return 2
@@ -551,3 +552,25 @@ def test_duplicate_explicit_link_names():
     hugr = main.with_minimal_opt().compile().modules[0]
     names = [data.op.f_name for data in hugr.values() if isinstance(data.op, FuncDefn)]
     assert names.count("shared") == 2
+
+
+def test_comptime_respects_user_link_name(qualifier):
+    """Regression test for https://github.com/Quantinuum/guppylang/issues/2578."""
+    from guppylang.std.array import array
+
+    n = guppy.nat_var("n")
+
+    @guppy.comptime
+    @link_name("totally_qualified_override_name")
+    def values() -> array[int, n]:
+        return list(range(n))
+
+    @guppy
+    def main() -> None:
+        _ = values[2]()
+        _ = values[3]()
+
+    names = _func_names(main.with_minimal_opt().compile())
+    prefix = "totally_qualified_override_name"
+    assert f"{prefix}$2" in names
+    assert f"{prefix}$3" in names

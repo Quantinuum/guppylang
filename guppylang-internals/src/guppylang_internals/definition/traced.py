@@ -23,6 +23,7 @@ from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
     ParsableDef,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.function import (
     default_func_link_name,
@@ -51,7 +52,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class RawTracedFunctionDef(ParsableDef):
+class RawTracedFunctionDef(ParsableDef, UserProvidedLinkName):
     python_func: PyFunc
 
     description: str = field(default="function", init=False)
@@ -77,12 +78,15 @@ class RawTracedFunctionDef(ParsableDef):
             unitary_flags=self.unitary_flags,
             is_static=is_static,
         )
+        link_name = self._user_set_link_name or default_func_link_name(self)
         return TracedFunctionDef(
             self.id,
             self.name,
             func_ast,
             ty,
-            py_func,
+            python_func=py_func,
+            link_name=link_name,
+            user_provided_link_name=self._user_set_link_name is not None,
             unitary_flags=self.unitary_flags,
             is_static=is_static,
             metadata=self.metadata,
@@ -90,8 +94,16 @@ class RawTracedFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
+class TracedFunctionDef(CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
+    python_func: PyFunc
+    link_name: str
+
+    # Retain the origin of the name through checking and monomorphization.
+    user_provided_link_name: bool = field(default=False, kw_only=True)
+
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
     def params(self) -> Sequence[Parameter]:
@@ -123,9 +135,11 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             self.name,
             self.defined_at,
             mono_ty,
-            self.python_func,
-            type_args,
-            trace,
+            inst=type_args,
+            trace=trace,
+            python_func=self.python_func,
+            link_name=self.link_name,
+            user_provided_link_name=self.user_provided_link_name,
             unitary_flags=self.unitary_flags,
             is_static=self.is_static,
             metadata=self.metadata,
@@ -170,7 +184,8 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
         func_type = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
             ctx.function_link_name(
-                monomorphized_link_name(default_func_link_name(self), self.inst),
+                monomorphized_link_name(self.link_name, self.inst),
+                user_provided=self.user_provided_link_name,
             ),
             func_type.body.input,
             func_type.body.output,
@@ -190,10 +205,12 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
-            self.inst,
-            self.trace,
-            func_def,
-            ctx.effects[(self.id, self.inst)],
+            inst=self.inst,
+            trace=self.trace,
+            func_def=func_def,
+            effects=ctx.effects[(self.id, self.inst)],
+            link_name=self.link_name,
+            user_provided_link_name=self.user_provided_link_name,
             unitary_flags=self.unitary_flags,
             is_static=self.is_static,
             metadata=self.metadata,

@@ -25,6 +25,7 @@ from guppylang_internals.checker.expr_checker import (
 )
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
+    DefaultCallChecker,
     InputFlagDefaultMode,
 )
 from guppylang_internals.definition.overloaded import InternalExpectOverloadError
@@ -35,6 +36,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
 )
 from guppylang_internals.nodes import (
     AbortExpr,
@@ -46,7 +48,6 @@ from guppylang_internals.nodes import (
     PlaceNode,
 )
 from guppylang_internals.std._internal.compiler.array import check_empty_array_elem_ty
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -312,16 +313,6 @@ class ArrayIndexChecker(CustomCallChecker):
             self.func.ty, args, ty, self.node, self.ctx, self.func
         )
 
-        assert isinstance(type_args[0], TypeArg)
-        if type_args[0].ty.copyable:
-            # Preserving legacy behaviour for linear types - these compile to
-            # borrow/return, which may panic, but in order to support optimization,
-            # we do not totally order such accesses, see https://github.com/Quantinuum/guppylang/issues/2122.
-            # However for copyable types we compile a separate unwrap in the panic
-            # chain; this is not included in the effects for __getitem__ (as these
-            # cannot depend upon type bound), so record that here.
-            register_effects(self.ctx, [Effect.PANIC])
-
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
@@ -337,11 +328,6 @@ class ArrayIndexChecker(CustomCallChecker):
         args, ty, type_args = synthesize_call(
             self.func.ty, args, self.node, self.ctx, self.func
         )
-
-        assert isinstance(type_args[0], TypeArg)
-        if type_args[0].ty.copyable:
-            # As self.check(...)
-            register_effects(self.ctx, [Effect.PANIC])
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
@@ -594,6 +580,51 @@ class BarrierChecker(CustomCallChecker):
         assert len(inst) == 0, "func_ty is not generic"
         node = BarrierExpr(args=args, func_ty=func_ty)
         return with_loc(self.node, node), ret_ty
+
+
+class GlobalPhaseChecker(DefaultCallChecker):
+    """Call checker for the `global_phase` function.
+
+    Modifiers are only applied to quantum code, so a global phase would be lost if it
+    were applied in a classical function. Thus, we only allow it inside `control`
+    blocks or in functions with quantum inputs or outputs.
+    """
+
+    @dataclass(frozen=True)
+    class ClassicalScopeError(Error):
+        title: ClassVar[str] = "Global phase in classical context"
+        span_label: ClassVar[str] = (
+            "`{name}` can only be used in a `control` block or in a function with "
+            "quantum inputs or outputs"
+        )
+        name: str
+
+        @dataclass(frozen=True)
+        class HiddenEffectNote(Note):
+            message: ClassVar[str] = (
+                "Restricting global phases to quantum contexts avoids hidden quantum "
+                "effects in classical functions."
+            )
+
+    def _check_scope(self) -> None:
+        if self.ctx.quantum_scope is None:
+            # Whether we are in a quantum scope depends on generic parameters, so wait
+            # for the monomorphic check
+            raise RequiresMonomorphizationError
+        if not self.ctx.quantum_scope:
+            err = self.ClassicalScopeError(self.node, self.func.name)
+            err.add_sub_diagnostic(self.ClassicalScopeError.HiddenEffectNote(None))
+            raise GuppyError(err)
+
+    @override
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        self._check_scope()
+        return super().check(args, ty)
+
+    @override
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        self._check_scope()
+        return super().synthesize(args)
 
 
 class WasmCallChecker(CustomCallChecker):

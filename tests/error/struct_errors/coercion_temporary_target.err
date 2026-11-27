@@ -1,0 +1,11 @@
+Error: Unsupported (at $FILE:11:4)
+   | 
+ 9 | @guppy
+10 | def main() -> None:
+11 |     S(0.0).value = 42
+   |     ^^^^^^ Assigning to this expression is not supported
+
+Help: Consider assigning this value to a local variable first before assigning
+the field `value`
+
+Guppy compilation failed due to 1 previous error
