@@ -229,8 +229,6 @@ def test_controlled_gate(gate, op_type, num_controls, run_statevector_fn):
 
 
 def test_controlled_toffoli(run_statevector_fn):
-    # X with two controls, or CX with one extra control, is Toffoli.
-    # One further control exercises their shared recursive decomposition.
     @guppy
     def main() -> array[qubit, 4]:
         ctrl = qubit()
