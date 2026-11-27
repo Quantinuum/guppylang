@@ -27,10 +27,18 @@ from guppylang.std.quantum import (
     measure,
     qubit,
     rx,
+    ry,
     rz,
     s,
+    sdg,
+    t,
+    tdg,
+    v,
+    vdg,
     discard_array,
     x,
+    y,
+    z,
 )
 
 c = guppy.nat_var("c")
@@ -60,6 +68,51 @@ def test_dagger_inverts_state_preparation(run_statevector_fn):
         return array(q)
 
     run_statevector_fn(main, expected=[1, 0], num_qubits=1)
+
+
+@pytest.mark.parametrize(
+    "gate",
+    [h, x, y, z, s, sdg, t, tdg, v, vdg],
+    ids=["h", "x", "y", "z", "s", "sdg", "t", "tdg", "v", "vdg"],
+)
+def test_dagger_gate(gate, run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 2]:
+        q = qubit()
+        ref = qubit()
+        # Use a Bell pair so relative phase errors are observable.
+        h(ref)
+        cx(ref, q)
+
+        gate(q)
+        with dagger:
+            gate(q)
+
+        cx(ref, q)
+        h(ref)
+        return array(q, ref)
+
+    run_statevector_fn(main, expected=[1, 0, 0, 0], num_qubits=2)
+
+
+@pytest.mark.parametrize("gate", [rx, ry, rz], ids=["rx", "ry", "rz"])
+def test_dagger_rotation(gate, run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 2]:
+        q = qubit()
+        ref = qubit()
+        h(ref)
+        cx(ref, q)
+
+        gate(q, angle(0.25))
+        with dagger:
+            gate(q, angle(0.25))
+
+        cx(ref, q)
+        h(ref)
+        return array(q, ref)
+
+    run_statevector_fn(main, expected=[1, 0, 0, 0], num_qubits=2)
 
 
 def test_dagger_call_simple(validate):
