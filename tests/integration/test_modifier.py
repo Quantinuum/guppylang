@@ -1,6 +1,7 @@
 import base64
 from collections.abc import Callable
 import pytest
+from pytket.circuit import Circuit, Op, OpType, QControlBox
 
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
@@ -27,9 +28,19 @@ from guppylang.std.quantum import (
     measure,
     qubit,
     rx,
+    ry,
     rz,
+    s,
+    sdg,
+    t,
+    tdg,
+    toffoli,
+    v,
+    vdg,
     discard_array,
     x,
+    y,
+    z,
 )
 
 c = guppy.nat_var("c")
@@ -42,6 +53,68 @@ def test_dagger_simple(validate):
             pass
 
     validate(bar.compile_function())
+
+
+def test_dagger_multiple_gates(run_statevector_fn):
+    @guppy(daggerable=True)
+    def prepare(q: qubit) -> None:
+        rx(q, angle(0.25))
+        rz(q, angle(0.25))
+
+    @guppy
+    def main() -> array[qubit, 1]:
+        q = qubit()
+        prepare(q)
+        with dagger:
+            prepare(q)
+        return array(q)
+
+    run_statevector_fn(main, expected=[1, 0], num_qubits=1)
+
+
+@pytest.mark.parametrize(
+    "gate",
+    [h, x, y, z, s, sdg, t, tdg, v, vdg],
+    ids=["h", "x", "y", "z", "s", "sdg", "t", "tdg", "v", "vdg"],
+)
+def test_dagger_gate(gate, run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 2]:
+        q = qubit()
+        ref = qubit()
+        # Use a Bell pair so relative phase errors are observable.
+        h(ref)
+        cx(ref, q)
+
+        gate(q)
+        with dagger:
+            gate(q)
+
+        cx(ref, q)
+        h(ref)
+        return array(q, ref)
+
+    run_statevector_fn(main, expected=[1, 0, 0, 0], num_qubits=2)
+
+
+@pytest.mark.parametrize("gate", [rx, ry, rz], ids=["rx", "ry", "rz"])
+def test_dagger_rotation(gate, run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 2]:
+        q = qubit()
+        ref = qubit()
+        h(ref)
+        cx(ref, q)
+
+        gate(q, angle(0.25))
+        with dagger:
+            gate(q, angle(0.25))
+
+        cx(ref, q)
+        h(ref)
+        return array(q, ref)
+
+    run_statevector_fn(main, expected=[1, 0, 0, 0], num_qubits=2)
 
 
 def test_dagger_call_simple(validate):
@@ -93,6 +166,87 @@ def test_control_simple(validate):
             pass
 
     validate(bar.compile_function())
+
+
+@pytest.mark.parametrize(
+    ("gate", "op_type", "num_controls"),
+    [
+        pytest.param(gate, op_type, count, id=f"{op_type.name}-{count}-controls")
+        for gate, op_type in [
+            (y, OpType.Y),
+            (z, OpType.Z),
+            (h, OpType.H),
+            (rx, OpType.Rx),
+            (ry, OpType.Ry),
+            (rz, OpType.Rz),
+        ]
+        for count in (1, 2)
+    ],
+)
+def test_controlled_gate(gate, op_type, num_controls, run_statevector_fn):
+    is_rotation = op_type in (OpType.Rx, OpType.Ry, OpType.Rz)
+    op = Op.create(op_type, 0.25) if is_rotation else Op.create(op_type)
+    num_qubits = num_controls + 1
+
+    if is_rotation:
+
+        @guppy(controllable=True)
+        def apply_gate(q: qubit) -> None:
+            gate(q, angle(0.25))
+
+    else:
+
+        @guppy(controllable=True)
+        def apply_gate(q: qubit) -> None:
+            gate(q)
+
+    @guppy
+    def main() -> array[qubit, num_qubits]:
+        controls = array(qubit() for _ in range(num_controls))
+        target = qubit()
+        # Include active and inactive control sectors coherently. Prepare a
+        # target that is not an eigenstate of any of the gates under test.
+        for i in range(num_controls):
+            h(controls[i])
+        rx(target, angle(0.25))
+        rz(target, angle(0.25))
+
+        with control(controls):
+            apply_gate(target)
+
+        return controls.concat(array(target))
+
+    expected = Circuit(num_qubits)
+    for i in range(num_controls):
+        expected.H(i)
+    expected.Rx(0.25, num_controls)
+    expected.Rz(0.25, num_controls)
+    expected.add_qcontrolbox(QControlBox(op, num_controls), list(range(num_qubits)))
+
+    run_statevector_fn(
+        main, expected=expected.get_statevector().tolist(), num_qubits=num_qubits
+    )
+
+
+def test_controlled_toffoli(run_statevector_fn):
+    @guppy
+    def main() -> array[qubit, 4]:
+        ctrl = qubit()
+        a = qubit()
+        b = qubit()
+        target = qubit()
+        h(ctrl)
+        h(a)
+        h(b)
+
+        with control(ctrl):
+            toffoli(a, b, target)
+
+        return array(ctrl, a, b, target)
+
+    amplitude = 1 / 8**0.5
+    expected = [amplitude, 0] * 7 + [0, amplitude]
+    run_statevector_fn(main, expected=expected, num_qubits=4)
 
 
 def test_control_multiple(validate):
