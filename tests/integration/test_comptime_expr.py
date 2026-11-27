@@ -47,6 +47,33 @@ def test_implicit_int_to_float(validate):
     validate(foo.compile_function())
 
 
+def test_explicit_int_to_float(validate, run_float_fn_approx):
+    """A comptime expression yielding an int in a float context coerces."""
+    from guppylang import guppy
+    from guppylang.std.builtins import comptime
+
+    @guppy
+    def main() -> float:
+        return comptime(1)
+
+    validate(main.compile_function())
+    run_float_fn_approx(main, 1.0)
+
+
+def test_explicit_int_to_float_contexts(validate, run_float_fn_approx):
+    @guppy
+    def identity(x: float) -> float:
+        return x
+
+    @guppy
+    def main() -> float:
+        x: float = comptime(1)
+        return x + identity(comptime(1 - 44))
+
+    validate(main.compile_function())
+    run_float_fn_approx(main, -42.0)
+
+
 def test_local_shadows_python_value(run_int_fn):
     x = 2
 
